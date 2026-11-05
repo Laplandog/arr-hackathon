@@ -1,7 +1,7 @@
 // 特效（尽量用代码生成，不依赖图片）：光团、送星星、雾融化、灰彩恢复、舒适带、火苗、Zzz、天空放晴、保护膜
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
-import { loadOrProcedural, canvasTexture } from './assets.js';
+import { loadOrProcedural, canvasTexture, tryLoadTexture } from './assets.js';
 import { PLANE, sharedBright } from './layout.js';
 import { Tween, Seq, Scheduler, ease, lerp, rand, bezier, depthOrder, vec3, DEG } from './util.js';
 
@@ -250,12 +250,13 @@ class Orb {
 
 // ───────────── 星星（光团送给 Mochi） ─────────────
 class Stars {
-  constructor(parent, tex, sparks, audio) {
-    this.parent = parent; this.tex = tex; this.sparks = sparks; this.audio = audio;
-    this.pool = []; this.active = [];
+  constructor(parent, texes, sparks, audio) {
+    this.parent = parent; this.texes = texes; this.sparks = sparks; this.audio = audio;
+    this.pool = []; this.active = []; this.nextTex = 0;
   }
   drop(from, to, dur, onLand) {
-    const m = this.pool.pop() || (() => { const q = quad(this.tex); this.parent.add(q); return q; })();
+    const m = this.pool.pop() || (() => { const q = quad(this.texes[0]); this.parent.add(q); return q; })();
+    m.material.map = this.texes[this.nextTex++ % this.texes.length]; // 每次换一种颜色
     m.visible = true;
     const size = CONFIG.orb.star.size;
     this.audio?.play('sfx_star');
@@ -426,17 +427,20 @@ function makeMembrane(parent) {
 export class Effects {
   static async create(world, scene, layout, settings, mochi, audio) {
     const P = CONFIG.paths;
+    const starVariants = (await Promise.all((CONFIG.orb.star.files || []).map((f) => tryLoadTexture([`${P.fx}${f}.png`]))))
+      .filter(Boolean).map((r) => r.tex);
     const [core, glow, star, zzz, f1, f2, f3, band] = await Promise.all([
       loadOrProcedural(`${P.orb}orb_core.png`, gen.orbCore),
       loadOrProcedural(`${P.orb}orb_glow.png`, gen.orbGlow),
-      loadOrProcedural(`${P.fx}fx_star.png`, gen.star),
+      starVariants.length ? { tex: starVariants[0] } : loadOrProcedural(`${P.fx}fx_star.png`, gen.star),
       loadOrProcedural(`${P.fx}fx_zzz.png`, gen.zzz),
       loadOrProcedural(`${P.fx}fx_flame_01.png`, gen.flame(0)),
       loadOrProcedural(`${P.fx}fx_flame_02.png`, gen.flame(1)),
       loadOrProcedural(`${P.fx}fx_flame_03.png`, gen.flame(2)),
       loadOrProcedural(`${P.fx}fx_comfort_band.png`, gen.band),
     ]);
-    return new Effects(world, scene, layout, settings, mochi, audio, { core, glow, star, zzz, flames: [f1, f2, f3], band });
+    if (starVariants.length) console.log(`[fx] 星星 ${starVariants.length} 种颜色，每次送星按顺序换`);
+    return new Effects(world, scene, layout, settings, mochi, audio, { core, glow, stars: starVariants.length ? starVariants : [star.tex], zzz, flames: [f1, f2, f3], band });
   }
 
   constructor(world, scene, layout, settings, mochi, audio, tx) {
@@ -447,7 +451,7 @@ export class Effects {
     this.trail = new Particles(world, this.dotTex, 96);     // 光团拖尾
     this.fogSparks = new Map();                             // 每团雾一组粒子，排序跟着雾的远近
     this.orb = new Orb(world, tx.core.tex, tx.glow.tex, this.trail);
-    this.stars = new Stars(world, tx.star.tex, this.sparks, audio);
+    this.stars = new Stars(world, tx.stars, this.sparks, audio);
     const flameProcedural = tx.flames.every((f) => f.procedural);
     this.flames = new Flames(world, tx.flames.map((f) => f.tex), flameProcedural, this.sparks);
     this.band = new Band(world, tx.band.tex, tx.band.procedural, this.sparks);

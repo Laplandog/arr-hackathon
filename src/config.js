@@ -171,7 +171,9 @@ export const CONFIG = {
     farPos: [3.6, 3.0, -7.5],
     bobAmp: 0.025, bobPeriod: 3.2, glowBreathAmp: 0.1, glowBreathPeriod: 2.6,
     greet: { approachSec: 1.6, circleSec: 1.8, radius: 0.48, toRestSec: 0.8 },
-    star: { flySec: 0.8, dropSec: 0.45, returnSec: 0.8, aboveHead: 0.22, size: 0.11 },
+    // 光团每次送星星按顺序换一种颜色（fx_star_01…06，由 tools/prep_stars.py 生成）；都没有时用 fx_star.png，再没有就代码画
+    star: { flySec: 0.8, dropSec: 0.45, returnSec: 0.8, aboveHead: 0.22, size: 0.12,
+      files: ['fx_star_01', 'fx_star_02', 'fx_star_03', 'fx_star_04', 'fx_star_05', 'fx_star_06'] },
     flash: { boost: 1.9, sec: 0.35 },
     snuggleOffset: [0.24, 0.04, 0.06], snuggleSec: 0.9, snuggleBoost: 1.45,
     endOffset: [0.26, 0.12, 0.05], endBoost: 1.6,

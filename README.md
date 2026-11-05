@@ -101,7 +101,10 @@ public/assets/
          mochi_eye_open / eye_closed / eye_happy
          mochi_mouth_closed / mouth_open / mouth_smile / mochi_blush
          mochi_sleep_body / mochi_sleep_belly        （全部 1024×1024，原位对齐）
-  fx/  fx_zzz, fx_flame_01..03, fx_star, fx_comfort_band
+  fx/  fx_zzz, fx_flame_01..03, fx_comfort_band
+       fx_star_01..06   光团每次送星星按顺序换一种颜色（都没有时用 fx_star.png，再没有就代码画）
+                        美术给不透明的浅色底星星图时：python tools/prep_stars.py 黄星星.png 紫星星.png
+                        → 自动抠图并调色出 黄/紫/陶土橙/青石绿/粉/天蓝 6 张
   orb/ orb_core, orb_glow
   audio/ bgm_pad_loop, sfx_snore, sfx_inhale_rise, sfx_hold, sfx_exhale_fall, sfx_huff,
          sfx_melt_chime, sfx_star, sfx_round_complete, sfx_sneeze, sfx_pat_drum   （.mp3）
