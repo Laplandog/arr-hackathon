@@ -1,0 +1,37 @@
+{
+  "_note": "由 tools/prep_poses.py 生成。canvas = 姿势图尺寸；charBox = 站立角色的范围（游戏里把它的高度缩放成 layout.json 的 mochi.height，底边中点 = 脚底）；anchors = 火苗出口 / 星星落点 / Zzz 起点（像素，左上角原点）；artFacing = 1 表示角色脸朝右。",
+  "canvas": [
+    834,
+    798
+  ],
+  "charBox": [
+    107,
+    12,
+    727,
+    786
+  ],
+  "artFacing": 1,
+  "anchors": {
+    "mouth": [
+      597,
+      298
+    ],
+    "head_top": [
+      460,
+      45
+    ],
+    "zzz": [
+      722,
+      276
+    ]
+  },
+  "poses": [
+    "dizzy",
+    "happy",
+    "huff",
+    "idle",
+    "rest",
+    "sleep",
+    "sneeze"
+  ]
+}

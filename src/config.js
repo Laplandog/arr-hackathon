@@ -6,6 +6,7 @@ export const CONFIG = {
     template: 'config/template.json',
     layout: 'assets/layout.json',
     pivots: 'assets/mochi/mochi_pivots.json',
+    poses: 'assets/mochi/mochi_poses.json',
     bg: 'assets/bg/',
     fog: 'assets/fog/',
     mochi: 'assets/mochi/',
@@ -86,6 +87,23 @@ export const CONFIG = {
   },
 
   mochi: {
+    // 整图姿势模式：有 mochi_poses.json 且 idle + sleep 两张图存在时启用（美术交的是整张姿势图，不是拆件）。
+    // 各姿势按状态切换；飞行/呼吸/哈气靠整张图的位移、缩放、倾斜表现。没有这些图时退回拆件模式。
+    sprite: {
+      files: {
+        idle: 'mochi_pose_idle', sleep: 'mochi_pose_sleep', rest: 'mochi_pose_rest', happy: 'mochi_pose_happy',
+        huff: 'mochi_pose_huff', sneeze: 'mochi_pose_sneeze', dizzy: 'mochi_pose_dizzy',
+      },
+      faceFogMode: 'flip',   // 哈气时纸片翻面朝向雾
+      fadeSec: 0.3, exprFadeSec: 0.15, quickFadeSec: 0.1, // 站↔睡 / 站姿换表情 / 哈气、喷嚏这种瞬间表情
+      sleepBreathAmp: 0.03,  // 睡觉时整张图 y 缩放 1.0↔1.03
+      bellyStretchY: 0.6, bellyStretchX: 0.35, // 吸气 belly 1→1.08 换算成整张图的拉伸
+      flap: { deg: 2.5, bob: 0.025, squash: 0.02 }, // “扇翅膀”：整张图小幅摇摆上下弹
+      hover: { deg: 1.2 },
+      glide: { deg: -4, swayDeg: 1 },        // 滑翔：向前倾
+      fold: { deg: 0.5 },
+      headToLean: -0.6,      // 哈气“头后仰 −8° 再前推 +6°” → 整张图倾斜（负号：后仰 = 向后倒）
+    },
     canvasPx: 1024,
     // 远→近；同一 index 的变体（眼睛/嘴）同一时间只显示一张
     standParts: [

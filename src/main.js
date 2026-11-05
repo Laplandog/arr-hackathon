@@ -57,10 +57,11 @@ window.addEventListener('pointermove', (e) => {
 async function boot() {
   await initVersion();
   const P = CONFIG.paths;
-  const [tpl, lay, piv] = await Promise.all([
+  const [tpl, lay, piv, poses] = await Promise.all([
     fetchJSON(P.template, CONFIG.templateDefaults),
     fetchJSON(P.layout, CONFIG.layoutDefaults),
     fetchJSON(P.pivots, {}),
+    fetchJSON(P.poses, null),
   ]);
   const template = { ...CONFIG.templateDefaults, ...tpl.data };
   console.log('[template] 示意，非临床参数：', template);
@@ -70,7 +71,7 @@ async function boot() {
 
   const layout = new Layout(world);
   let settings = await layout.build(lay.data);
-  const mochi = await Mochi.create(world, world, piv.data, settings);
+  const mochi = await Mochi.create(world, world, piv.data, settings, poses.data);
   const fx = await Effects.create(world, scene, layout, settings, mochi, audio);
   await audioLoad;
 

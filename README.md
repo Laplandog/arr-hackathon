@@ -14,6 +14,7 @@ Three.js + WebXR 的“立体书”式 VR 场景，能在 Quest 3 浏览器里�
 4. 等 1–2 分钟（仓库首页 **Actions** 标签里出现绿色对勾就是好了），刷新线上预览网址就能看到新图
 
 - 还没上传的图会显示成带文件名的半透明占位方块，所以上传一张就能看到一张。
+- **Mochi 姿势图例外**：美术给的整张姿势图要先用 `tools/prep_poses.py` 处理（去掉零散装饰、统一大小、脚底对齐），再上传生成的 `public/assets/mochi/mochi_pose_*.png` 和 `mochi_poses.json`。见下面“Mochi 整图姿势”。
 - 调位置：改 `public/assets/layout.json`（网页上点文件 → 右上角铅笔图标编辑 → Commit changes）。
 - 电脑浏览器里看效果时按 **Space** 推进流程、**D** 自动播放整轮，其他按键见下表。左上角面板显示还缺几张图，按 F12 打开控制台能看到完整缺失清单。
 
@@ -61,6 +62,28 @@ npm run build      # 输出 dist/（Vercel / Netlify 直接用）
 - **结束键**：随时可用；Mochi 飞回窝，已恢复的颜色保留，天空不强行放晴
 
 没有失败、没有分数、没有 Miss；进度不会倒退。确认哈气在按下时就记下，所以中途暂停，雾也照样融化。
+
+## Mochi 整图姿势（当前使用）
+
+美术交的是整张姿势图，不是拆件，所以 Mochi 用“整图姿势模式”：按状态切换姿势，飞行/呼吸/哈气靠整张图的位移、拉伸、倾斜表现；哈气时纸片翻面朝向要融化的那团雾。
+
+| 姿势文件 | 什么时候出现 |
+| --- | --- |
+| `mochi_pose_sleep.png` | 开场、放松呼吸、回窝打呼噜 |
+| `mochi_pose_idle.png` | 起飞、呼气滑翔、等待家长确认 |
+| `mochi_pose_happy.png` | 吸满悬停、本轮哈气完成、END 开心转圈 |
+| `mochi_pose_huff.png` | 每次哈火 |
+| `mochi_pose_sneeze.png` | 喷嚏（需 `includeCough: true`） |
+| `mochi_pose_rest.png` | 暂停时趴下休息 |
+| `mochi_pose_dizzy.png` | 预留：将来碰到保护膜晕乎乎（P2） |
+
+美术更新姿势图时，在项目根目录运行（需要 Python + Pillow + numpy + scipy）：
+
+```bash
+python tools/prep_poses.py idle=站立.webp sleep=睡觉.webp rest=趴下.webp happy=开心.webp huff=哈气.webp sneeze=喷嚏.webp dizzy=晕.webp
+```
+
+脚本会去掉旁边零散的 Zzz/气团/闪光线（这些由代码做动画），把站立姿势统一到同一身高、脚底对齐，并写出 `mochi_poses.json`（火苗出口、星星落点、Zzz 起点的位置也在里面）。删掉 `mochi_poses.json` 或缺 idle/sleep 两张图时，自动退回下面的拆件模式。
 
 ## 素材（B 交图：覆盖同名文件即可，代码不用改）
 

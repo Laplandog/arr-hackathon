@@ -1,7 +1,7 @@
 // Mochi 剪纸动画：所有部件是同一张 1024×1024 画布导出、原位对齐的平面，叠在一起，绕支点旋转/缩放。
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
-import { loadOrPlaceholder } from './assets.js';
+import { loadOrPlaceholder, tryLoadTexture } from './assets.js';
 import { makeLayerMaterial, PLANE } from './layout.js';
 import { Tween, Seq, ease, DEG, lerp, rand, clamp, depthOrder } from './util.js';
 
@@ -32,7 +32,20 @@ function normPivots(raw) {
 const norm = ([px, py]) => [(px - C.canvasPx / 2) / C.canvasPx, -(py - C.canvasPx / 2) / C.canvasPx];
 
 export class Mochi {
-  static async create(parent, worldGroup, pivotsRaw, settings) {
+  static async create(parent, worldGroup, pivotsRaw, settings, posesMeta = null) {
+    // 整图姿势模式：有 mochi_poses.json 且 idle + sleep 两张图都在
+    if (posesMeta && Array.isArray(posesMeta.canvas) && Array.isArray(posesMeta.charBox)) {
+      const files = C.sprite.files;
+      const names = Object.keys(files);
+      const got = await Promise.all(names.map((n) => tryLoadTexture([`${CONFIG.paths.mochi}${files[n]}.png`])));
+      const tex = {};
+      names.forEach((n, i) => { if (got[i]) tex[n] = got[i]; });
+      if (tex.idle && tex.sleep) {
+        console.log(`[mochi] 整图姿势模式：${Object.keys(tex).join(', ')}`);
+        return new Mochi(parent, worldGroup, null, pivotsRaw, settings, { meta: posesMeta, tex });
+      }
+      console.warn('[mochi] 有 mochi_poses.json 但缺 idle / sleep 姿势图，改用拆件模式');
+    }
     const all = [...C.standParts, ...C.sleepParts];
     const texes = await Promise.all(all.map((p) => loadOrPlaceholder(
       [`${CONFIG.paths.mochi}${p.file}.png`],
@@ -43,8 +56,9 @@ export class Mochi {
     return new Mochi(parent, worldGroup, texMap, pivotsRaw, settings);
   }
 
-  constructor(parent, worldGroup, texMap, pivotsRaw, settings) {
+  constructor(parent, worldGroup, texMap, pivotsRaw, settings, sprite = null) {
     this.world = worldGroup;
+    this.mode = sprite ? 'sprite' : 'parts';
     this.root = new THREE.Group(); this.root.name = 'mochi';
     this.flipG = new THREE.Group();          // scale = S（× 朝向 / 转圈）
     this.stand = new THREE.Group(); this.sleep = new THREE.Group();
@@ -57,15 +71,20 @@ export class Mochi {
     for (const a of Object.keys(C.defaultAnchors)) if (this.pivots[a]) this.anchorsPx[a] = this.pivots[a];
 
     this.parts = {};
-    this._build(C.standParts, this.stand, 'stand', texMap);
-    this._build(C.sleepParts, this.sleep, 'sleep', texMap);
-    // 锚点：火苗出口、星星落点（跟着头动）、Zzz 起点（睡姿）
     this.anchors = {};
-    const headPv = this.parts.head?.pivot || this.stand;
-    for (const [name, parentObj] of [['mouth', headPv], ['head_top', headPv], ['zzz', this.sleep]]) {
-      const o = new THREE.Object3D(); o.name = `anchor_${name}`;
-      parentObj.add(o); this.anchors[name] = o;
+    if (sprite) {
+      this._buildSprite(sprite);
+    } else {
+      this._build(C.standParts, this.stand, 'stand', texMap);
+      this._build(C.sleepParts, this.sleep, 'sleep', texMap);
+      // 锚点：火苗出口、星星落点（跟着头动）、Zzz 起点（睡姿）
+      const headPv = this.parts.head?.pivot || this.stand;
+      for (const [name, parentObj] of [['mouth', headPv], ['head_top', headPv], ['zzz', this.sleep]]) {
+        const o = new THREE.Object3D(); o.name = `anchor_${name}`;
+        parentObj.add(o); this.anchors[name] = o;
+      }
     }
+    this.resting = false; this.sneezing = false;
 
     // 状态
     this.x = new Tween(0); this.y = new Tween(0); this.z = new Tween(0);
@@ -98,6 +117,100 @@ export class Mochi {
     }
   }
 
+  /**
+   * 整图姿势：每个姿势一张平面，全部同一画布、脚底对齐（tools/prep_poses.py 已处理）。
+   * 归一化单位：站立角色高度 = 1（再由 flipG 缩放成 mochi.height 米）。root 原点 = 角色中心，脚底在 y = −0.5。
+   */
+  _buildSprite({ meta, tex }) {
+    const [cw, ch] = meta.canvas;
+    const [bx0, by0, bx1, by1] = meta.charBox;
+    const charH = by1 - by0;
+    const feetX = (bx0 + bx1) / 2, feetY = by1;
+    this.spriteFeet = new THREE.Group(); // 支点在脚底：呼吸拉伸、倾斜都绕脚底
+    this.spriteFeet.name = 'mochi_feet';
+    this.spriteFeet.position.set(0, -0.5, 0);
+    this.flipG.add(this.spriteFeet);
+    const px = (x, y) => [(x - feetX) / charH, -(y - feetY) / charH];
+    const [cx, cy] = px(cw / 2, ch / 2);
+    this.sprites = {};
+    for (const [name, t] of Object.entries(tex)) {
+      const mat = makeLayerMaterial(t.tex, null, { side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(PLANE, mat);
+      mesh.name = C.sprite.files[name];
+      mesh.scale.set(cw / charH, ch / charH, 1);
+      mesh.position.set(cx, cy, 0);
+      mesh.visible = false;
+      this.spriteFeet.add(mesh);
+      this.sprites[name] = { mesh, mat };
+    }
+    this.spriteCur = 'sleep'; this.spritePrev = null; this.spriteBlend = 1; this.spriteFade = C.sprite.fadeSec;
+    const A = { ...C.defaultAnchors, ...(meta.anchors || {}) };
+    for (const name of ['mouth', 'head_top', 'zzz']) {
+      const o = new THREE.Object3D(); o.name = `anchor_${name}`;
+      const [ax, ay] = px(...A[name]);
+      o.position.set(ax, ay, 0.02);
+      this.spriteFeet.add(o); this.anchors[name] = o;
+    }
+    this.artFacing = meta.artFacing === -1 ? -1 : 1;
+  }
+
+  _spriteTarget() {
+    const has = (n) => !!this.sprites[n];
+    if (this.standW.to < 0.5) return this.resting && has('rest') ? 'rest' : 'sleep';
+    if (this.sneezing && has('sneeze')) return 'sneeze';
+    if (this.mouth === 'open' && has('huff')) return 'huff';
+    if ((this.eyes === 'happy' || this.mouth === 'smile') && has('happy')) return 'happy';
+    return 'idle';
+  }
+
+  _spriteMotion(mode, t) {
+    const S = C.sprite;
+    switch (mode) {
+      case 'flap': { const s = Math.sin(t * TAU * C.wing.flapHz); return { deg: S.flap.deg * s, bob: S.flap.bob * Math.abs(s), sx: 1 + S.flap.squash * s }; }
+      case 'hover': return { deg: S.hover.deg * Math.sin(t * TAU * C.wing.hoverHz), bob: 0, sx: 1 };
+      case 'glide': return { deg: S.glide.deg + S.glide.swayDeg * Math.sin(t * TAU * C.wing.glideHz), bob: 0, sx: 1 };
+      default: return { deg: S.fold.deg * Math.sin(t * TAU * C.wing.foldHz), bob: 0, sx: 1 };
+    }
+  }
+
+  _updateSprite(dt, t) {
+    const S = C.sprite;
+    // 选姿势 + 交叉淡入：新姿势叠在上面淡入，旧姿势后半段才淡出（避免两张半透明叠出“透视”）
+    const target = this._spriteTarget();
+    if (target !== this.spriteCur) {
+      const quick = ['huff', 'sneeze'].includes(target) || ['huff', 'sneeze'].includes(this.spriteCur);
+      const lie = (n) => n === 'sleep' || n === 'rest';
+      this.spriteFade = quick ? S.quickFadeSec : lie(target) !== lie(this.spriteCur) ? S.fadeSec : S.exprFadeSec;
+      this.spritePrev = this.spriteCur; this.spriteCur = target; this.spriteBlend = 0;
+    }
+    this.spriteBlend = Math.min(1, this.spriteBlend + dt / this.spriteFade);
+    const base = depthOrder(this.root.position.z);
+    for (const [name, s] of Object.entries(this.sprites)) {
+      let a = 0;
+      if (name === this.spriteCur) a = this.spriteBlend;
+      else if (name === this.spritePrev) a = 1 - Math.max(0, (this.spriteBlend - 0.5) * 2);
+      s.mat.opacity = a;
+      s.mesh.visible = a > 0.002;
+      s.mesh.renderOrder = base + (name === this.spriteCur ? 0.2 : 0.1);
+    }
+    // 动作：没有单独的翅膀/肚皮，用整张图的拉伸、倾斜、上下弹表现
+    const lying = this.spriteCur === 'sleep' || this.spriteCur === 'rest';
+    let sy = 1, sx = 1, deg = 0, bob = 0;
+    if (lying) {
+      sy = 1 + S.sleepBreathAmp * (0.5 - 0.5 * Math.cos(t * TAU / C.sleepBreath.period));
+    } else {
+      sy = 1 + (this.belly.v - 1) * S.bellyStretchY;
+      sx = 1 + (this.belly.v - 1) * S.bellyStretchX;
+      if (this.waitMode) sy *= 1 + C.idleBreath.amp * 0.5 * (0.5 - 0.5 * Math.cos(t * TAU / C.idleBreath.period));
+      const a = this._spriteMotion(this.prevWing, t), b = this._spriteMotion(this.wingMode, t), k = this.wingBlend.v;
+      deg = lerp(a.deg, b.deg, k); bob = lerp(a.bob, b.bob, k); sx *= lerp(a.sx, b.sx, k);
+      deg += this.head.v * S.headToLean;
+    }
+    this.spriteFeet.scale.set(sx, sy, 1);
+    this.spriteFeet.rotation.z = deg * DEG;
+    this.spriteFeet.position.y = -0.5 + bob;
+  }
+
   _pivotPx(part) {
     const n = part.def.name;
     return this.pivots[n] || (part.group && this.pivots[part.group]) || [C.canvasPx / 2, C.canvasPx / 2];
@@ -105,6 +218,7 @@ export class Mochi {
 
   /** 按当前高度 S 摆放部件和支点：支点本地偏移 = ((px−512)/1024 × S, −(py−512)/1024 × S)，部件反向偏移 */
   _placeRig() {
+    if (this.mode === 'sprite') return; // 整图模式的平面和锚点在 _buildSprite 里摆好，只随 S 缩放
     const gap = C.layerGap / this.S; // 归一化后的 1 mm
     for (const part of Object.values(this.parts)) {
       const [dx, dy] = norm(this._pivotPx(part));
@@ -144,6 +258,8 @@ export class Mochi {
     this.belly.set(1); this.head.set(0); this.hopY.set(0); this.yaw.set(0); this.face.set(1);
     this.standW.set(0); this.blushT.set(0); this.hoverAmt.set(0); this.spinT.set(0);
     this.setWings('fold', 0); this.eyes = 'open'; this.mouth = 'closed'; this.waitMode = false; this.flying = false;
+    this.resting = false; this.sneezing = false;
+    if (this.mode === 'sprite') { this.spriteCur = 'sleep'; this.spritePrev = null; this.spriteBlend = 1; }
   }
   setPose(p, dur = C.poseFadeSec) { this.standW.go(p === 'stand' ? 1 : 0, dur, ease.linear); }
   get pose() { return this.standW.to > 0.5 ? 'stand' : 'sleep'; }
@@ -203,8 +319,8 @@ export class Mochi {
     const S = C.sneeze, sg = C.huff.headSign;
     this._act([
       { dur: S.windupSec, start: () => this.setEyes('closed'), update: (p) => this.head.set(lerp(0, S.windupDeg * sg, ease.outQuad(p))) },
-      { dur: S.jerkSec, start: () => { this.setMouth('open'); onBurst?.(); }, update: (p) => this.head.set(lerp(S.windupDeg * sg, S.jerkDeg * sg, ease.outCubic(p))) },
-      { dur: S.recoverSec, update: (p) => this.head.set(lerp(S.jerkDeg * sg, 0, ease.inOutSine(p))), end: () => { this.setMouth('closed'); this.setEyes('open'); } },
+      { dur: S.jerkSec, start: () => { this.sneezing = true; this.setMouth('open'); onBurst?.(); }, update: (p) => this.head.set(lerp(S.windupDeg * sg, S.jerkDeg * sg, ease.outCubic(p))) },
+      { dur: S.recoverSec, update: (p) => this.head.set(lerp(S.jerkDeg * sg, 0, ease.inOutSine(p))), end: () => { this.sneezing = false; this.setMouth('closed'); this.setEyes('open'); } },
     ]);
   }
 
@@ -219,7 +335,7 @@ export class Mochi {
     this.hop();
     if (spin) this.spinT.set(0).go(1, C.spinSec, ease.inOutSine, () => this.spinT.set(0));
   }
-  calm() { this.setEyes('open'); this.setMouth('closed'); this.blushT.go(0, 0.6); }
+  calm() { this.setEyes('open'); this.setMouth('closed'); this.blushT.go(0, 0.6); this.resting = false; }
 
   wake() {
     this.setPose('stand'); this.calm(); this.setWings('fold'); this.hop(0.035, 0.4);
@@ -230,6 +346,7 @@ export class Mochi {
     const go = () => {
       this.move?.cancel(); this.move = null;
       this.setHover(false); this.setWings('fold'); this.calm(); this.waitMode = false;
+      this.resting = true; this.faceToward(null);
       this.y.go(this.groundY, C.restDescendSec, ease.inOutSine);
       this.setPose('sleep', C.poseFadeSec);
     };
@@ -239,10 +356,12 @@ export class Mochi {
   /** HUFF 时朝向雾（'turn'：小角度转身；'flip'：纸片翻面；null = 回正） */
   faceToward(target) {
     const F = C.faceFog;
-    if (!target || F.mode === 'none') { this.yaw.go(0, F.sec); this.face.go(1, F.sec); return; }
+    const mode = this.mode === 'sprite' ? C.sprite.faceFogMode : F.mode;
+    const facing = this.mode === 'sprite' ? this.artFacing : C.artFacing;
+    if (!target || mode === 'none') { this.yaw.go(0, F.sec); this.face.go(1, F.sec); return; }
     const dx = target.x - this.x.v;
-    if (F.mode === 'flip') {
-      if (Math.abs(dx) > 0.2) this.face.go(Math.sign(dx) * C.artFacing, F.sec);
+    if (mode === 'flip') {
+      if (Math.abs(dx) > 0.2) this.face.go(Math.sign(dx) * facing, F.sec);
     } else {
       this.yaw.go(-F.maxDeg * clamp(dx / 1.5, -1, 1), F.sec);
     }
@@ -284,6 +403,7 @@ export class Mochi {
     this.root.rotation.y = this.yaw.v * DEG;
     const spin = this.spinT.v > 0 ? Math.cos(this.spinT.v * TAU) : 1; // 纸片翻面
     this.flipG.scale.set(this.S * this.face.v * spin, this.S, this.S);
+    if (this.mode === 'sprite') { this._updateSprite(dt, t); return; }
 
     // 眨眼（只在睁眼时）
     if (this.eyes === 'open' && this.standW.v > 0.5) {
