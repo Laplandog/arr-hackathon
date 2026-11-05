@@ -63,19 +63,22 @@ export const CONFIG = {
     skyKey: 'bg_00_sky',
     // 天幕（layout 里 "dome": true 的层）：贴在半径 radius 米的大球内侧。
     // 图片下沿/上沿对应仰角 elevation（度）；正前方 spanDeg 度显示原图，身后镜像接上；离上下沿 fadeDeg 度开始渐变成边缘颜色
-    dome: { radius: 80, elevation: [-45, 60], spanDeg: 180, fadeDeg: 15 },
+    // spanDeg 270：镜像接缝在左右 135° 附近（身后两侧），孩子转头看两侧时看不到天空的“折痕”
+    dome: { radius: 80, elevation: [-45, 60], spanDeg: 270, fadeDeg: 15 },
     // 自动裁掉四周透明边（只改 UV，不动文件）。内容面积小于整张的 85% 才裁。layout.json 的 w = 看得见的内容宽度
     trim: { enabled: true, scanPx: 512, margin: 0.005, maxAreaToTrim: 0.85 },
   },
 
   // 全局哈气计数 → 区域。layout.json 里写 "zones" 可以覆盖。
+  // 颜色从远到近、从中间往两侧扩散：远景一圈 → 左边 → 右边（风车转起来）→ 主岛和孩子脚下
   zones: [
-    { fog: 'fog_puff_01', layers: ['bg_10_far_islands'] },            // z1 远景岛
-    { fog: 'fog_puff_02', layers: ['bg_30_island_left'] },            // z2 左岛
-    { fog: 'fog_puff_03', layers: ['bg_31_island_right'] },           // z3 右岛
+    { fog: 'fog_puff_01', layers: ['bg_10_far_islands', 'bg_33_island_side_l2', 'bg_35_island_side_r2'] }, // z1 远景岛 + 两侧远处的小岛
+    { fog: 'fog_puff_02', layers: ['bg_30_island_left', 'bg_32_island_side_l1', 'bg_23_cloudbank_side_l'] }, // z2 左岛 + 左侧
+    { fog: 'fog_puff_03', layers: ['bg_31_island_right', 'bg_34_island_side_r1', 'bg_50_windmill_body', 'bg_51_windmill_blades',
+      'bg_24_cloudbank_side_r'] },                                                                          // z3 右岛 + 右侧风车岛
     { fog: 'fog_puff_04', layers: ['bg_40_island_main', 'bg_41_flowers', 'bg_41_flowers_small', 'bg_41_flowers_big',
       'bg_42_nest_back', 'bg_42_nest_front', 'bg_60_fg_grass_left', 'bg_60_fg_grass_right',
-      'bg_61_grass_01', 'bg_61_grass_02', 'bg_61_grass_03', 'bg_61_grass_04'] }, // z4 主岛花丛 + 小窝 + 前景草
+      'bg_61_grass_01', 'bg_61_grass_02', 'bg_61_grass_03', 'bg_61_grass_04', 'bg_05_ground'] }, // z4 主岛花丛 + 小窝 + 前景草 + 脚下的地面
   ],
 
   world: {
@@ -284,7 +287,7 @@ export const CONFIG = {
   autoplay: { intervalSec: 2.2, huffIntervalSec: 2.6, startDelaySec: 3 },
 
   desktop: {
-    fov: 70, maxYawDeg: 30, maxPitchDeg: 18, dragSensitivity: 0.15,
+    fov: 70, maxYawDeg: 120, maxPitchDeg: 45, dragSensitivity: 0.15, // 四周都有东西了，桌面上拖动也能看两侧、身后和脚下
     // 桌面视差（VR 里不用，头显本身有立体和视差）：鼠标移动最多平移 x/y 米；鼠标停 idleAfterSec 秒后左右缓慢晃 sway 米
     parallax: { x: 0.2, y: 0.08, sway: 0.08, swaySec: 9, idleAfterSec: 3 },
   },

@@ -57,7 +57,7 @@ npm run build      # 输出 dist/（Vercel / Netlify 直接用）
 - **INTRO**：全灰，4 团雾就位，Mochi 在窝里睡。按下一步 → 光团从远处飞来绕 Mochi 一圈 → SLEEP
 - **SLEEP**：打呼噜（不要求跟拍）。下一步 → 光团送星星 → Mochi 醒来 → FLY
 - **FLY**：舒适带淡入，自动循环 `expansionBreaths` 次（吸气上升 → 悬停 → 滑翔落下）。每口气吸满停一下时，从 Mochi 头顶飞起一个金色光点，点亮左上方天空里的一颗星。循环没完成时按键无效；完成后下一步 → 送星星 → HUFF
-- **HUFF**：Mochi 先示范一次（不融雾）。每按一次 = 家长确认孩子哈了一次气：光团亮一下 → Mochi 哈火 → 下一团雾融化 → 0.4 秒后区域灰→彩。全局哈气 1–4 依次对应 z1 远景岛、z2 左岛、z3 右岛、z4 主岛花丛。本轮哈满后再按一次 → SETTLE
+- **HUFF**：Mochi 先示范一次（不融雾）。每按一次 = 家长确认孩子哈了一次气：光团亮一下 → Mochi 哈火 → 下一团雾融化 → 0.4 秒后区域灰→彩。全局哈气 1–4 依次对应 z1 远景岛（+ 两侧远处的小岛）、z2 左岛（+ 左侧小岛）、z3 右岛（+ 右侧风车岛，风车开始转）、z4 主岛花丛（+ 孩子脚下的地面）——颜色从远到近、从中间往两侧扩散。本轮哈满后再按一次 → SETTLE
 - **SETTLE**：飞回小窝打呼噜，一道星光从天上落到龙蛋上，蛋暖一格。还有轮次 → 送星星 → FLY；否则 → END
 - **END**：天空放晴、亮度略升、残雾淡出；星光落到龙蛋上，光团飞到蛋旁边，蛋使劲晃几下后裂开（上半壳飞起落到窝边，壳里透出暖光，孵出什么先留悬念），Mochi 开心转圈
 
@@ -112,7 +112,18 @@ public/assets/
        现在的花丛是代替图：python tools/make_paper_flowers.py 画的纸艺花（花苞版直接是灰紫色，开放版彩色）。
                    美术交了真花，用同样的 4 个文件名（big/small × closed/open）覆盖即可；
                    同一丛的 closed 和 open 请用同一张画布导出（交叉淡入要对齐）
+       四周（两侧、身后、脚下）：
+         bg_05_ground            孩子脚下的纸地面（俯视图，平放在 y=0，"rot": [-90,0,0]）
+         bg_50_windmill_body     右侧小岛上的风车塔身
+         bg_51_windmill_blades   风车叶片：画布中心 = 转轴；右边恢复颜色后才开始转（"anim": "spin", "spinWhenColored": true）
+         这三张现在是代替图：python tools/make_paper_scenery.py 画的，美术交真图用同名覆盖即可
+         两侧小岛、两侧/身后的云带、散落的云 05…15 都是复用现有的图（layout 里用 "file" 指向原图）
        其他 bg 键 → {键}.png（layout 里 "optional": true 的层，文件不存在就不显示）
+       layout 里每层还可以写：
+         "face": true            放在两侧/身后的层整张转过来正对孩子（摆放时转一次，不是跟着头转）
+         "rot": [x, y, z]        额外旋转（度）
+         "sortZ": 数字           前后排序用的深度（默认用 z；face 的层用水平距离）
+         "file" + "mode": "colorGray"  复用灰/彩成对的图（例如两侧小岛复用左右岛）
   fog/ fog_puff_01.png … fog_puff_04.png
   mochi/ mochi_pivots.json         支点像素坐标（1024 画布，左上角原点，y 向下）
          mochi_wing_left / wing_right / tail / body / belly / head

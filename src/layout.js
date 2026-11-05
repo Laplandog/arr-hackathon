@@ -128,6 +128,7 @@ export class LayerPlane {
     this.mat = makeLayerMaterial(texA.tex, texB?.tex || null, { gray });
     this.mesh = new THREE.Mesh(PLANE, this.mat);
     this.mesh.name = key;
+    this.mesh.rotation.order = 'YXZ'; // 先在图面内转（摇摆/风车），再俯仰（地面平放），最后左右转（朝向孩子）
     this.aspect = size.h / size.w || 1;
     this.gray = new Tween(gray);
     this.startGray = gray; // 配对层（灰/彩、合上/开放）从 1 开始
@@ -140,7 +141,19 @@ export class LayerPlane {
   applyEntry(e) {
     this.base.copy(vec3(e.pos));
     this.w = e.w;
-    this.mesh.renderOrder = depthOrder(this.base.z, +e.order || 0);
+    // "face": true —— 放在两侧/身后的层整张转过来正对孩子（摆放时转一次，不是每帧跟着头转的 billboard）
+    // "rot": [x, y, z] 度 —— 额外旋转，例如地面 [-90, 0, 0] 平放
+    this.face = !!e.face;
+    const r = Array.isArray(e.rot) ? e.rot.map((v) => (+v || 0) * DEG) : [0, 0, 0];
+    this.rotX = r[0]; this.rotY = r[1] + (this.face ? Math.atan2(-this.base.x, -this.base.z) : 0); this.rotZ0 = r[2];
+    // 排序：默认按 z；朝向孩子的侧面层按水平距离；"sortZ" 可以直接指定
+    const sortZ = e.sortZ != null ? +e.sortZ : this.face ? -Math.hypot(this.base.x, this.base.z) : this.base.z;
+    this.mesh.renderOrder = depthOrder(sortZ, +e.order || 0);
+    if (this.face && this.mat.side !== THREE.DoubleSide) { this.mat.side = THREE.DoubleSide; this.mat.needsUpdate = true; }
+    // "anim": "spin" —— 绕图片中心转（风车叶片）；"spinWhenColored": true = 灰着的时候不转，恢复颜色后慢慢转起来
+    this.spinSec = e.spinSec != null ? +e.spinSec : 8;
+    this.spinWhenColored = !!e.spinWhenColored;
+    this.spinAngle ||= 0;
     this.anim = e.anim ?? CONFIG.layerRules.animByName.find((r) => this.key.includes(r.match))?.anim ?? null;
     if (this.kind === 'fog' && !e.anim) this.anim = 'fog';
     // "flipX": true 水平翻转（同一张图换个方向再用一次）；翻转后背面朝孩子，所以改成双面
@@ -169,14 +182,22 @@ export class LayerPlane {
         oy = Math.sin(ph) * W.fogIdleBob; s = 1 + Math.sin(ph * 0.8 + 1) * W.fogIdleBreath;
         break;
       }
+      case 'spin': {
+        const k = this.spinWhenColored ? Math.max(0, 1 - this.gray.v) : 1;
+        this.spinAngle -= dt * k * 2 * Math.PI / this.spinSec;
+        rz = this.spinAngle;
+        break;
+      }
     }
     // 雾融化：1.2 秒内透明度 1→0、整体放大 1.15、向上飘 0.2 m
     const M = CONFIG.melt;
     const alpha = this.opacity * (1 - m);
     s *= 1 + (M.scaleTo - 1) * m;
     oy += M.rise * m;
-    this.mesh.position.set(this.base.x + ox + this.offset.x, this.base.y + oy + this.offset.y, this.base.z + this.offset.z);
-    this.mesh.rotation.z = rz;
+    // 漂移/摇摆的左右位移沿着图面方向（侧面朝向孩子的层也是左右飘）
+    const cy = Math.cos(this.rotY ?? 0), sy = Math.sin(this.rotY ?? 0);
+    this.mesh.position.set(this.base.x + ox * cy + this.offset.x, this.base.y + oy + this.offset.y, this.base.z - ox * sy + this.offset.z);
+    this.mesh.rotation.set(this.rotX ?? 0, this.rotY ?? 0, (this.rotZ0 ?? 0) + rz);
     const w = this.w * s * this.scaleMul;
     this.mesh.scale.set(this.flipX ? -w : w, w * this.aspect, 1);
     this.mat.opacity = alpha;
