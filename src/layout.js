@@ -6,6 +6,8 @@ import { vec3, depthOrder, Tween, DEG } from './util.js';
 
 export const PLANE = new THREE.PlaneGeometry(1, 1);
 export const sharedBright = { value: 1 };
+// 空气透视：远处的层往这个颜色（天空地平线的颜色，灰/彩跟着天空变）混一点
+export const sharedHaze = { value: new THREE.Color(0.75, 0.72, 0.8) };
 const TINT = new THREE.Vector3(...CONFIG.layerRules.grayTint);
 
 const FRAG = /* glsl */ `
@@ -17,9 +19,17 @@ const FRAG = /* glsl */ `
   vec4 grayC = mix( synthGray, texB, uHasB );
   vec4 sampledDiffuseColor = mix( texA, grayC, uGray );
   sampledDiffuseColor.rgb *= uBright;
+  sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb, uHazeColor, uHaze );
   diffuseColor *= sampledDiffuseColor;
 #endif
 `;
+
+/** 按离孩子的距离算空气透视的强度 */
+export function hazeFor(pos) {
+  const H = CONFIG.world.haze;
+  const d = Math.hypot(pos.x, pos.y - CONFIG.layoutDefaults.eyeHeight, pos.z);
+  return Math.max(0, Math.min(1, (d - H.near) / (H.far - H.near))) * H.max;
+}
 
 /**
  * 所有贴图层共用的材质：MeshBasicMaterial + 灰/彩混合。
@@ -33,12 +43,13 @@ export function makeLayerMaterial(mapA, mapB = null, { gray = 0, side = THREE.Fr
   const u = {
     uGray: { value: gray }, uMapB: { value: mapB || mapA }, uHasB: { value: mapB ? 1 : 0 },
     uTint: { value: TINT }, uBright: sharedBright,
+    uHaze: { value: 0 }, uHazeColor: sharedHaze,
   };
   mat.userData.u = u;
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, u);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uGray;\nuniform sampler2D uMapB;\nuniform float uHasB;\nuniform vec3 uTint;\nuniform float uBright;')
+      .replace('#include <common>', '#include <common>\nuniform float uGray;\nuniform sampler2D uMapB;\nuniform float uHasB;\nuniform vec3 uTint;\nuniform float uBright;\nuniform float uHaze;\nuniform vec3 uHazeColor;')
       .replace('#include <map_fragment>', FRAG);
   };
   mat.customProgramCacheKey = () => 'mochiLayer';
@@ -132,6 +143,10 @@ export class LayerPlane {
     this.mesh.renderOrder = depthOrder(this.base.z, +e.order || 0);
     this.anim = e.anim ?? CONFIG.layerRules.animByName.find((r) => this.key.includes(r.match))?.anim ?? null;
     if (this.kind === 'fog' && !e.anim) this.anim = 'fog';
+    this.bobAmp = e.bobAmp != null ? +e.bobAmp : 0.02;
+    this.bobSec = e.bobSec != null ? +e.bobSec : 4;
+    // 空气透视：layout 里写 "haze": 0~1 可以覆盖自动值
+    this.mat.userData.u.uHaze.value = e.haze != null ? +e.haze : hazeFor(this.base);
     // grayStart：单张彩图也从灰色开始（属于某个区域就随区域恢复，否则 END 天空放晴时恢复）
     if (e.grayStart && !this._grayInit) { this.startGray = 1; this.gray.set(1); }
     this._grayInit = true;
@@ -145,7 +160,7 @@ export class LayerPlane {
     switch (this.anim) {
       case 'sway': rz = Math.sin((t + this.phase) * 2 * Math.PI / 5) * 1.2 * DEG; ox = Math.sin((t + this.phase) * 2 * Math.PI / 5) * 0.01; break;
       case 'drift': ox = Math.sin((t + this.phase) * 2 * Math.PI / 14) * 0.06; oy = Math.sin((t + this.phase) * 2 * Math.PI / 9) * 0.01; break;
-      case 'bob': oy = Math.sin((t + this.phase) * 2 * Math.PI / 4) * 0.02; break;
+      case 'bob': oy = Math.sin((t + this.phase) * 2 * Math.PI / this.bobSec) * this.bobAmp; rz = Math.sin((t + this.phase) * 2 * Math.PI / (this.bobSec * 1.7)) * 0.6 * DEG; break;
       case 'fog': {
         const ph = (t + this.phase) * 2 * Math.PI / W.fogIdlePeriod;
         oy = Math.sin(ph) * W.fogIdleBob; s = 1 + Math.sin(ph * 0.8 + 1) * W.fogIdleBreath;
@@ -203,14 +218,18 @@ void main() {
 }`;
 
 /** 图片上沿 / 下沿几行的平均色（线性空间），给天幕头顶和脚下做渐变 */
-function edgeColor(img, top) {
+function edgeColor(img, top) { return rowColor(img, top ? 0 : 30 / 32); }
+
+/** 图片某一高度（从上往下 0~1）一行的平均色（线性空间） */
+export function rowColor(img, fromTop) {
   const out = new THREE.Color(0.6, 0.6, 0.65);
   try {
     const c = document.createElement('canvas');
     c.width = 64; c.height = 32;
     const g = c.getContext('2d', { willReadFrequently: true });
     g.drawImage(img, 0, 0, 64, 32);
-    const d = g.getImageData(0, top ? 0 : 30, 64, 2).data;
+    const row = Math.max(0, Math.min(30, Math.round(fromTop * 32)));
+    const d = g.getImageData(0, row, 64, 2).data;
     let r = 0, gg = 0, b = 0;
     for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; }
     const n = d.length / 4;
@@ -249,6 +268,8 @@ export class SkyDome {
     const span = +(e.spanDeg ?? D.spanDeg);
     this.mat.uniforms.uEl.value.set(lo * DEG, hi * DEG, (hi - D.fadeDeg) * DEG, (lo + D.fadeDeg) * DEG);
     this.mat.uniforms.uSpan.value = span * DEG;
+    // 地平线（仰角 0°）那一行的颜色 → 空气透视用
+    this.horizon = rowColor(this.mat.uniforms.map.value.image, 1 - (0 - lo) / (hi - lo));
     this.mesh.position.set(0, +(e.centerY ?? CONFIG.layoutDefaults.eyeHeight), 0);
     this.base.copy(vec3(e.pos));
     this.enabled = true;

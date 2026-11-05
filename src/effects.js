@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { loadOrProcedural, canvasTexture, tryLoadTexture } from './assets.js';
-import { PLANE, sharedBright, trimTexture, trimTexturesUnion } from './layout.js';
+import { PLANE, sharedBright, sharedHaze, trimTexture, trimTexturesUnion } from './layout.js';
 import { Tween, Seq, Scheduler, ease, lerp, rand, bezier, depthOrder, vec3, DEG } from './util.js';
 
 const TAU = Math.PI * 2;
@@ -594,6 +594,14 @@ export class Effects {
     const k = this.skyT.update(dt);
     this.scene.background.copy(this.bgGray).lerp(this.bgClear, k);
     sharedBright.value = lerp(1, CONFIG.world.endBrightness, k);
+    // 空气透视颜色 = 天空地平线的颜色；天空还灰的时候用它的灰版
+    const sky = this.layout.get(CONFIG.layerRules.skyKey);
+    if (sky?.horizon) {
+      const h = sky.horizon, lum = 0.2126 * h.r + 0.7152 * h.g + 0.0722 * h.b, T = CONFIG.layerRules.grayTint;
+      this._hazeGray ||= new THREE.Color();
+      this._hazeGray.setRGB(lum * T[0], lum * T[1], lum * T[2]);
+      sharedHaze.value.copy(this._hazeGray).lerp(h, 1 - sky.gray.v);
+    }
     if (this.membrane) this.membrane.material.uniforms.uTime.value = t;
   }
 }

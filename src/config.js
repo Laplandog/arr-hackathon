@@ -80,6 +80,8 @@ export const CONFIG = {
     bgGray: '#a29db0',      // 雾天背景色（天空图后面）
     bgClear: '#c6b9d3',     // 放晴后的背景色（接近天空图顶部的淡紫，边缘不露色）
     endBrightness: 1.08,    // END 时整体亮度略升
+    // 空气透视：离孩子 near 米以内不变，越远越往天空地平线的颜色混，far 米处混到 max
+    haze: { near: 2.5, far: 14, max: 0.45 },
     skyClearSec: 3,
     fogIdleBob: 0.015,      // 雾团待机上下浮动（米）
     fogIdleBreath: 0.02,    // 雾团待机缩放起伏
@@ -241,7 +243,11 @@ export const CONFIG = {
 
   autoplay: { intervalSec: 2.2, huffIntervalSec: 2.6, startDelaySec: 3 },
 
-  desktop: { fov: 70, maxYawDeg: 30, maxPitchDeg: 18, dragSensitivity: 0.15 },
+  desktop: {
+    fov: 70, maxYawDeg: 30, maxPitchDeg: 18, dragSensitivity: 0.15,
+    // 桌面视差（VR 里不用，头显本身有立体和视差）：鼠标移动最多平移 x/y 米；鼠标停 idleAfterSec 秒后左右缓慢晃 sway 米
+    parallax: { x: 0.14, y: 0.06, sway: 0.06, swaySec: 9, idleAfterSec: 3 },
+  },
 
   debug: { infoLogSec: 10, maxTextureSize: 2048 },
 };

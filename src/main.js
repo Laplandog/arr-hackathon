@@ -41,11 +41,14 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// 桌面模式：鼠标拖动小范围转头（方便录电脑画面）
-const look = { yaw: 0, pitch: 0, drag: false, x: 0, y: 0 };
+// 桌面模式：鼠标拖动小范围转头（方便录电脑画面）；鼠标移动时视点跟着平移一点（视差，看得出前后层次）
+const look = { yaw: 0, pitch: 0, drag: false, x: 0, y: 0, px: 0, py: 0, ox: 0, oy: 0, lastMove: -1e9 };
 renderer.domElement.addEventListener('pointerdown', (e) => { look.drag = true; look.x = e.clientX; look.y = e.clientY; });
 window.addEventListener('pointerup', () => { look.drag = false; });
 window.addEventListener('pointermove', (e) => {
+  look.px = (e.clientX / window.innerWidth) * 2 - 1;
+  look.py = (e.clientY / window.innerHeight) * 2 - 1;
+  look.lastMove = performance.now();
   if (!look.drag) return;
   const D = CONFIG.desktop;
   look.yaw = clamp(look.yaw - (e.clientX - look.x) * D.dragSensitivity, -D.maxYawDeg, D.maxYawDeg);
@@ -175,7 +178,17 @@ async function boot() {
     mochi.update(dt, t);
     fx.update(dt, t);
     layout.update(dt, t);
-    if (!renderer.xr.isPresenting) camera.rotation.set(look.pitch * DEG, look.yaw * DEG, 0, 'YXZ');
+    if (!renderer.xr.isPresenting) {
+      camera.rotation.set(look.pitch * DEG, look.yaw * DEG, 0, 'YXZ');
+      // 视差：鼠标位置 → 视点平移；鼠标停下一会儿后缓慢左右晃（录屏也看得出远近）
+      const P = CONFIG.desktop.parallax;
+      const idle = performance.now() - look.lastMove > P.idleAfterSec * 1000;
+      const tx = (idle ? 0 : look.px * P.x) + (idle ? Math.sin(t * 2 * Math.PI / P.swaySec) * P.sway : 0);
+      const ty = idle ? Math.sin(t * 2 * Math.PI / (P.swaySec * 1.6)) * P.sway * 0.4 : -look.py * P.y;
+      const k = Math.min(1, dt * 3);
+      look.ox += (tx - look.ox) * k; look.oy += (ty - look.oy) * k;
+      camera.position.set(look.ox, 1.1 + look.oy, 0);
+    }
     hud.update(dt, sm, { audioLocked: !audio.unlocked, autoplay: autoplay.on });
     renderer.render(scene, camera);
     if ((infoT += dt) >= CONFIG.debug.infoLogSec) {
