@@ -5,6 +5,7 @@ import { loadOrProcedural, canvasTexture, tryLoadTexture } from './assets.js';
 import { PLANE, sharedBright, sharedHaze, trimTexture, trimTexturesUnion } from './layout.js';
 import { Tween, Seq, Scheduler, ease, lerp, rand, bezier, depthOrder, vec3, DEG } from './util.js';
 import { Egg, Constellation, eggGen } from './egg.js';
+import { Ambient } from './ambient.js';
 
 const TAU = Math.PI * 2;
 const _v = new THREE.Vector3();
@@ -547,7 +548,13 @@ export class Effects {
       const path = `${P.egg}${f}.png`;
       egg[k] = ['cold', 'warm', 'crack'].includes(k) ? await loadOrProcedural(path, eggGen.egg(k)) : await tryLoadTexture([path, path.replace(/\.png$/, '.PNG')]);
     }));
-    return new Effects(world, scene, layout, settings, mochi, audio, { core, glow, stars: starVariants.length ? starVariants : [star.tex], zzz, flames: [f1, f2, f3], band, paper: paperTex, egg });
+    // 小动静：纸鸟两帧、蝴蝶（缺图就不放）
+    const tl = (f) => tryLoadTexture([`${P.fx}${f}.png`, `${P.fx}${f}.PNG`]);
+    const ambient = {
+      birds: await Promise.all(['fx_bird_01', 'fx_bird_02'].map(tl)),
+      butterflies: await Promise.all(['fx_butterfly_01', 'fx_butterfly_02'].map(tl)),
+    };
+    return new Effects(world, scene, layout, settings, mochi, audio, { core, glow, stars: starVariants.length ? starVariants : [star.tex], zzz, flames: [f1, f2, f3], band, paper: paperTex, egg, ambient });
   }
 
   constructor(world, scene, layout, settings, mochi, audio, tx) {
@@ -599,6 +606,7 @@ export class Effects {
     this.sky = new Constellation(world, {
       starTexes: tx.stars, slotTex: tx.paper[starIdx]?.tex || null, glowTex, lineTex: eggGen.line(), sparks: this.skySparks, audio,
     });
+    this.ambient = new Ambient(world, layout, tx.ambient || {});
 
     this.bgGray = new THREE.Color(CONFIG.world.bgGray);
     this.bgClear = new THREE.Color(CONFIG.world.bgClear);
@@ -665,6 +673,7 @@ export class Effects {
       const spread = Math.min(0.5, fog.w * 0.25);
       ps.burst(fog.base, n, { speed: 0.25 + fog.w * 0.08, up: 0.25, life: [1.0, 1.8], size: [0.025 * (1 + fog.w * 0.3), 0.05 * (1 + fog.w * 0.3)], colors: M.colors, spread, grav: 0.06 });
       this.audio?.play('sfx_melt_chime');
+      this.ambient.onZone(i); // 这一边醒过来：鸟飞起来 / 蝴蝶出来 / 种子变暖
     }
     this.sched.after(M.recolorDelay, () => this.recolor(z.layers || [], M.recolorDur));
     return melted;
@@ -680,8 +689,9 @@ export class Effects {
     this.skyT.go(1, W.skyClearSec, ease.inOutSine);
     this.zones.forEach((z, i) => {
       const fog = this.layout.get(z.fog);
-      if (fog && !fog.melted) { fog.melted = true; fog.melt.go(1, W.skyClearSec * 0.8, ease.inOutSine); this.recolor(z.layers || [], W.skyClearSec); }
+      if (fog && !fog.melted) { fog.melted = true; fog.melt.go(1, W.skyClearSec * 0.8, ease.inOutSine); this.recolor(z.layers || [], W.skyClearSec); this.ambient.onZone(i); }
     });
+    this.ambient.onClear();
     // 其余还是灰的层（例如远景云、近处云）随天空一起恢复
     for (const L of this.layout.layers.values()) if (L.gray.to > 0 || L.gray.v > 0.001) L.gray.go(0, W.skyClearSec, ease.inOutSine);
     // 美术的几何纸片从 Mochi 上方飘落（庆祝）
@@ -709,6 +719,7 @@ export class Effects {
     this.stars.clear(); this.flames.clear(); this.sparks.clear(); this.trail.clear(); this.paper.clear();
     for (const ps of this.fogSparks.values()) ps.clear();
     this.egg.reset(); this.eggSparks.clear(); this.skySparks.clear();
+    this.ambient.reset();
     // 星座的星数由状态机按模板重建（sky.reset(total)）
   }
 
@@ -723,7 +734,7 @@ export class Effects {
     this.sparks.mesh.renderOrder = depthOrder(this.mochi.depthZ, 0.8);
     this.sparks.update(dt); this.trail.update(dt);
     for (const ps of this.fogSparks.values()) ps.update(dt);
-    this.egg.update(dt, t); this.sky.update(dt, t);
+    this.egg.update(dt, t); this.sky.update(dt, t); this.ambient.update(dt, t);
     this.eggSparks.mesh.renderOrder = depthOrder(this.egg.group.position.z, 0.07);
     this.eggSparks.update(dt); this.skySparks.update(dt);
     const k = this.skyT.update(dt);

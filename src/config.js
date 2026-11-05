@@ -245,6 +245,34 @@ export const CONFIG = {
     sparkSec: 1.2, cometSec: 1.3, sparkArc: 0.5, sparkAngular: 0.05, sparkColor: '#ffc95c', trailRate: 45,
   },
 
+  // 小动静（P1）：纸鸟、蝴蝶、飘浮的种子，都跟着进度出现。enabled = false 整个关掉。
+  // 纸鸟：zone = 第几个区域恢复颜色时从 from 那座岛飞起来（'end' = 结尾放晴时从远处飞来）；
+  //       之后在方位角 az[0]..az[1]（度，左负右正）、离孩子 r 米、仰角 el[0]±el[1] 度之间来回飞，periodSec 秒一个来回
+  ambient: {
+    enabled: true,
+    birdTakeoff: { sec: 3.2, arc: 1.2, fadeSec: 0.5 },
+    flapHz: 2.6, flapRun: 1.4, glideSec: 1.8,   // 扇 1.4 秒、滑翔 1.8 秒
+    birds: [
+      { zone: 0, from: 'bg_33_island_side_l2', az: [-100, -62], r: 12, el: [11, 2], periodSec: 30, size: 1.0, tint: '#dbe9f7' },
+      { zone: 1, from: 'bg_32_island_side_l1', az: [-78, -36], r: 8.5, el: [12, 2.5], periodSec: 24, size: 0.8, tint: '#ffffff' },
+      { zone: 1, from: 'bg_32_island_side_l1', az: [-70, -42], r: 9.5, el: [17, 2], periodSec: 28, size: 0.74, tint: '#fde3cf', delay: 2.2 },
+      { zone: 2, from: 'bg_34_island_side_r1', az: [34, 80], r: 8.5, el: [14, 2.5], periodSec: 25, size: 0.8, tint: '#ffffff' },
+      { zone: 2, from: 'bg_34_island_side_r1', az: [44, 74], r: 10, el: [19, 2], periodSec: 30, size: 0.74, tint: '#dff1e8', delay: 2.0 },
+      { zone: 'end', from: null, az: [8, 46], r: 15, el: [24, 2], periodSec: 34, size: 1.25, tint: '#fff2e0' },
+    ],
+    // 蝴蝶：第 4 个区域（主岛）恢复、花开以后，从 at 那丛花里飞出来，绕着花丛画 8 字
+    butterflyFlapHz: 4,
+    butterflies: [
+      { zone: 3, at: 'bg_41_flowers_big', tex: 0, size: 0.2, rx: 0.36, ry: 0.12, rz: 0.12, lift: 0.32, periodSec: 7, delay: 1.8 },
+      { zone: 3, at: 'bg_41_flowers_small', tex: 1, size: 0.18, rx: 0.26, ry: 0.1, rz: 0.1, lift: 0.28, periodSec: 6, delay: 2.6 },
+    ],
+    // 种子：孩子身边 rMin..rMax 米、方位角 az 范围里慢慢往上飘；开场只出现 grayCount 颗、灰色，越往后越多、越暖
+    seeds: {
+      count: 40, grayCount: 14, rMin: 1.3, rMax: 2.6, az: [-110, 110], yMin: 0.25, yMax: 2.6,
+      rise: [0.025, 0.06], sway: 0.08, size: [0.055, 0.085], grayColor: '#d3cddf', warmColor: '#fff4d6',
+    },
+  },
+
   membrane: { // 旧的代码画保护膜（带涟漪）。美术把保护膜改成了保护壳（fx_shell_long / fx_shell_short，在 layout.json 里摆），所以关掉
     enabled: false, y: 2.35, center: [0, -1.8], radius: 3.2, opacity: 0.16,
   },
