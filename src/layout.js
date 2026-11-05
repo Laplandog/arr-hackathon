@@ -49,7 +49,7 @@ export function makeLayerMaterial(mapA, mapB = null, { gray = 0, side = THREE.Fr
  * 找出图片里不透明内容的范围（归一化，v 从上往下）。美术常在大画布上导出、四周大片透明：
  * 裁掉后 layout 的 w 就是“看得见的内容宽度”，也避免在 Quest 上叠出很多全屏透明平面拖慢帧率。
  */
-function alphaBBox(img) {
+function alphaBBox(img, force = false) {
   const T = CONFIG.layerRules.trim;
   const s = Math.min(1, T.scanPx / Math.max(img.width, img.height));
   const w = Math.max(1, Math.round(img.width * s)), h = Math.max(1, Math.round(img.height * s));
@@ -70,7 +70,29 @@ function alphaBBox(img) {
     u0: Math.max(0, (x0 - m) / w), v0: Math.max(0, (y0 - m) / h),
     u1: Math.min(1, (x1 + 1 + m) / w), v1: Math.min(1, (y1 + 1 + m) / h),
   };
-  return (bb.u1 - bb.u0) * (bb.v1 - bb.v0) < T.maxAreaToTrim ? bb : null;
+  return force || (bb.u1 - bb.u0) * (bb.v1 - bb.v0) < T.maxAreaToTrim ? bb : null;
+}
+
+/** 一组同画布的帧（例如火苗 01→03 从小到大）用同一个裁切框，保留帧之间的大小变化 */
+export function trimTexturesUnion(list) {
+  if (!CONFIG.layerRules.trim.enabled || !list.length) return null;
+  const bbs = [];
+  for (const t of list) {
+    if (t.placeholder || t.procedural || !t.tex?.image) return null;
+    try { const b = alphaBBox(t.tex.image, true); if (b) bbs.push(b); } catch { return null; }
+  }
+  if (!bbs.length) return null;
+  const u = {
+    u0: Math.min(...bbs.map((b) => b.u0)), v0: Math.min(...bbs.map((b) => b.v0)),
+    u1: Math.max(...bbs.map((b) => b.u1)), v1: Math.max(...bbs.map((b) => b.v1)),
+  };
+  if ((u.u1 - u.u0) * (u.v1 - u.v0) >= CONFIG.layerRules.trim.maxAreaToTrim) return null;
+  for (const t of list) {
+    t.tex.repeat.set(u.u1 - u.u0, u.v1 - u.v0);
+    t.tex.offset.set(u.u0, 1 - u.v1);
+    t.tex.needsUpdate = true;
+  }
+  return { w: (u.u1 - u.u0) * list[0].w, h: (u.v1 - u.v0) * list[0].h };
 }
 
 /** 把贴图裁到内容范围（只改 UV，不改文件）；返回裁后的宽高像素 */
@@ -231,7 +253,8 @@ export class Layout {
 
   async _create(e) {
     const R = CONFIG.layerRules;
-    const dir = e.kind === 'fog' ? CONFIG.paths.fog : CONFIG.paths.bg;
+    // "dir": "fx" 之类可以把特效图（例如保护壳）当作场景层摆进 layout
+    const dir = e.dir ? (CONFIG.paths[e.dir] || `${String(e.dir).replace(/\/?$/, '/')}`) : e.kind === 'fog' ? CONFIG.paths.fog : CONFIG.paths.bg;
     const name = e.file || e.key;
     const phAspect = e.h && e.w ? e.h / e.w : 1;
     const isColorGray = R.colorGray.includes(e.key) || e.mode === 'colorGray';

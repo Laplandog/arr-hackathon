@@ -95,7 +95,11 @@ python tools/prep_poses.py idle=站立.webp sleep=睡觉.webp rest=趴下.webp h
 public/assets/
   layout.json                      各层位置（单位米；B 调位置后桌面按 L 重读）
   bg/  {键}_color.png + {键}_gray.png   ← bg_00_sky（也可 .jpg）, bg_10_far_islands, bg_30_island_left, bg_31_island_right, bg_40_island_main
-       bg_41_flowers_closed.png + bg_41_flowers_open.png
+       主岛花丛（小号 / 大号，各一对合上→开放）：
+         bg_41_flowers_small_closed.png + bg_41_flowers_small_open.png
+         bg_41_flowers_big_closed.png   + bg_41_flowers_big_open.png
+       小窝前后两层（Mochi 夹在中间）：bg_42_nest_back.png、bg_42_nest_front.png
+       散落的云（备用，远景近景都能用）：bg_25_cloud_01.png … bg_25_cloud_04.png（layout 里已预留 4 个位置，可再加）
        其他 bg 键 → {键}.png（layout 里 "optional": true 的层，文件不存在就不显示）
   fog/ fog_puff_01.png … fog_puff_04.png
   mochi/ mochi_pivots.json         支点像素坐标（1024 画布，左上角原点，y 向下）
@@ -104,7 +108,10 @@ public/assets/
          mochi_mouth_closed / mouth_open / mouth_smile / mochi_blush
          mochi_sleep_body / mochi_sleep_belly        （全部 1024×1024，原位对齐）
   fx/  fx_zzz           美术的整组 Zzz 图：整组往上飘、淡入淡出（两组错开）；没有图时代码画单个 Z
-       fx_flame_01..03, fx_comfort_band
+       fx_flame_01..03  火焰从小到大三帧：喷火时按 01→02→03 播一遍后停在 03（三帧请用同一张画布导出、火焰朝右）
+       fx_comfort_band
+       fx_shell_long / fx_shell_short   保护壳（长 / 短）：long 是岛上方的“世界的顶”，short 在 Mochi 飞行区正上方
+                        （在 layout.json 里用 "dir": "fx" 摆放；原来代码画的带涟漪保护膜已关掉，fx_ripple 不再需要）
        fx_dizzy_star    预留：将来碰到保护膜晕乎乎（P2），现在没用到
        fx_star_01..06   光团每次送星星按顺序换一种颜色（都没有时用 fx_star.png，再没有就代码画）
                         美术给不透明的浅色底星星图时：python tools/prep_stars.py 黄星星.png 紫星星.png

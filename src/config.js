@@ -47,8 +47,8 @@ export const CONFIG = {
   layerRules: {
     // 这些键加载 {键}_color + {键}_gray，灰→彩交叉淡入
     colorGray: ['bg_00_sky', 'bg_10_far_islands', 'bg_30_island_left', 'bg_31_island_right', 'bg_40_island_main'],
-    // 这些键加载 {键}_closed + {键}_open，合上→开放
-    closedOpen: ['bg_41_flowers'],
+    // 这些键加载 {键}_closed + {键}_open，合上→开放（主岛花丛分小号 / 大号）
+    closedOpen: ['bg_41_flowers', 'bg_41_flowers_small', 'bg_41_flowers_big'],
     // 依次尝试的扩展名（天空可能是 .jpg；网页上传时常见大写 .PNG，网站区分大小写，所以也试大写）
     exts: ['.png', '.PNG', '.jpg', '.JPG'],
     singleExts: ['.png', '.PNG'],
@@ -69,7 +69,8 @@ export const CONFIG = {
     { fog: 'fog_puff_01', layers: ['bg_10_far_islands'] },            // z1 远景岛
     { fog: 'fog_puff_02', layers: ['bg_30_island_left'] },            // z2 左岛
     { fog: 'fog_puff_03', layers: ['bg_31_island_right'] },           // z3 右岛
-    { fog: 'fog_puff_04', layers: ['bg_40_island_main', 'bg_41_flowers', 'bg_60_fg_grass_left', 'bg_60_fg_grass_right'] }, // z4 主岛花丛 + 前景草
+    { fog: 'fog_puff_04', layers: ['bg_40_island_main', 'bg_41_flowers', 'bg_41_flowers_small', 'bg_41_flowers_big',
+      'bg_42_nest_back', 'bg_42_nest_front', 'bg_60_fg_grass_left', 'bg_60_fg_grass_right'] }, // z4 主岛花丛 + 小窝 + 前景草
   ],
 
   world: {
@@ -188,6 +189,8 @@ export const CONFIG = {
   },
 
   flame: {
+    // 'grow'：fx_flame_01→02→03 从小到大播一遍后停在 03（美术的三帧是火焰从小到大）；'loop'：三帧循环闪
+    mode: 'grow',
     frameSec: 0.08, size: 0.2, travelSec: 0.75, demoDistance: 0.45, artAngleDeg: 0,
     embers: 18,
   },
@@ -195,8 +198,8 @@ export const CONFIG = {
   // 代码画的单个 Z：count/rise/sec/size；美术的整组 Zzz 图：groupCount/groupW(宽,米)/groupRise/groupSec
   zzz: { count: 3, rise: 0.28, sec: 3.0, size: 0.09, sway: 0.03, groupCount: 2, groupW: 0.2, groupRise: 0.16, groupSec: 3.6 },
 
-  membrane: { // P1：岛上方果冻般的保护膜（只是视觉）
-    enabled: true, y: 2.35, center: [0, -1.8], radius: 3.2, opacity: 0.16,
+  membrane: { // 旧的代码画保护膜（带涟漪）。美术把保护膜改成了保护壳（fx_shell_long / fx_shell_short，在 layout.json 里摆），所以关掉
+    enabled: false, y: 2.35, center: [0, -1.8], radius: 3.2, opacity: 0.16,
   },
 
   timing: {

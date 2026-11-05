@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { loadOrProcedural, canvasTexture, tryLoadTexture } from './assets.js';
-import { PLANE, sharedBright, trimTexture } from './layout.js';
+import { PLANE, sharedBright, trimTexture, trimTexturesUnion } from './layout.js';
 import { Tween, Seq, Scheduler, ease, lerp, rand, bezier, depthOrder, vec3, DEG } from './util.js';
 
 const TAU = Math.PI * 2;
@@ -294,8 +294,8 @@ class Stars {
 
 // ───────────── 火苗 ─────────────
 class Flames {
-  constructor(parent, frames, additive, sparks) {
-    this.parent = parent; this.frames = frames; this.additive = additive; this.sparks = sparks;
+  constructor(parent, frames, additive, sparks, aspect = 1) {
+    this.parent = parent; this.frames = frames; this.additive = additive; this.sparks = sparks; this.aspect = aspect;
     this.pool = []; this.active = [];
   }
   /** 从 from 飞到 to；demo=true 时只飞一小段就化成小光点（示范，不融雾） */
@@ -305,6 +305,7 @@ class Flames {
     const d = target.clone().sub(from);
     if (demo) target = from.clone().add(d.setLength(F.demoDistance));
     const m = this.pool.pop() || (() => { const q = quad(this.frames[0], { additive: this.additive }); this.parent.add(q); return q; })();
+    m.material.map = this.frames[0];
     m.visible = true;
     const dx = target.x - from.x, dy = target.y - from.y;
     const ang = Math.abs(dx) + Math.abs(dy) > 0.05 ? Math.atan2(dy, dx) : Math.PI / 2;
@@ -317,11 +318,16 @@ class Flames {
       const it = this.active[i];
       it.t += dt; it.frameT += dt;
       const { m } = it;
-      if (it.frameT >= F.frameSec) { it.frameT = 0; it.frame = (it.frame + 1) % this.frames.length; m.material.map = this.frames[it.frame]; }
+      const artGrow = F.mode === 'grow' && !this.additive; // 美术的三帧本身就是从小到大
+      if (artGrow) {
+        const f = Math.min(this.frames.length - 1, Math.floor(it.t / F.frameSec));
+        if (f !== it.frame) { it.frame = f; m.material.map = this.frames[f]; }
+      } else if (it.frameT >= F.frameSec) { it.frameT = 0; it.frame = (it.frame + 1) % this.frames.length; m.material.map = this.frames[it.frame]; }
       const p = Math.min(1, it.t / it.dur);
       m.position.lerpVectors(it.from, it.to, ease.outQuad(p));
-      const grow = Math.min(1, p * 3);
-      m.scale.setScalar(F.size * (0.55 + 0.45 * grow) * (it.demo ? 1 - 0.4 * p : 1));
+      const grow = artGrow ? 1 : Math.min(1, p * 3);
+      const s = F.size * (0.55 + 0.45 * grow) * (it.demo ? 1 - 0.4 * p : 1);
+      m.scale.set(s, s * this.aspect, 1);
       m.material.opacity = p < 0.8 ? 1 : (1 - p) / 0.2;
       m.renderOrder = depthOrder(m.position.z, 0.85);
       if (Math.random() < dt * F.embers) this.sparks.emit({ pos: m.position.clone(), vel: [rand(-0.05, 0.05), rand(0.02, 0.1), 0], life: rand(0.3, 0.6), size: rand(0.012, 0.022), color: '#ffb35a', drag: 2 });
@@ -468,8 +474,10 @@ export class Effects {
     this.fogSparks = new Map();                             // 每团雾一组粒子，排序跟着雾的远近
     this.orb = new Orb(world, tx.core.tex, tx.glow.tex, this.trail);
     this.stars = new Stars(world, tx.stars, this.sparks, audio);
-    const flameProcedural = tx.flames.every((f) => f.procedural);
-    this.flames = new Flames(world, tx.flames.map((f) => f.tex), flameProcedural, this.sparks);
+    const flameProcedural = tx.flames.some((f) => f.procedural);
+    const flameTrim = flameProcedural ? null : trimTexturesUnion(tx.flames);
+    const flameSize = flameTrim || tx.flames[0];
+    this.flames = new Flames(world, tx.flames.map((f) => f.tex), flameProcedural, this.sparks, flameSize.h / flameSize.w || 1);
     this.band = new Band(world, tx.band.tex, tx.band.procedural, this.sparks);
     let zzzOpts = {};
     if (!tx.zzz.procedural) {
