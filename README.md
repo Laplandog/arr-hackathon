@@ -101,9 +101,10 @@ public/assets/
        小窝前后两层（Mochi 夹在中间）：bg_42_nest_back.png、bg_42_nest_front.png
        散落的云（备用，远景近景都能用）：bg_25_cloud_01.png … bg_25_cloud_15.png（layout 里摆了 6 朵）
        云带：bg_21_cloudbank_far（远景岛脚下的云海，16 m）、bg_22_cloudbank_mid（左右岛下方的毛线云，9.5 m）
-       草丛：bg_61_grass_01、bg_61_grass_02（主岛前沿左右），bg_61_grass_03 = grass_01 翻转（篮子后面）
-       现在的花丛：bg_41_flowers_big_closed/open = 草丛合集里配色相同的两丛（开放那丛有小黄花）；
-                   小号花丛在 layout 里用 "file": "bg_41_flowers_big" + "flipX": true 复用同一对图
+       前景草丛：bg_61_grass_01 … 04 = 美术草丛合集里的 4 丛（04 是带小黄球那丛），摆在主岛下方的空白处
+       现在的花丛是代替图：python tools/make_paper_flowers.py 画的纸艺花（花苞版直接是灰紫色，开放版彩色）。
+                   美术交了真花，用同样的 4 个文件名（big/small × closed/open）覆盖即可；
+                   同一丛的 closed 和 open 请用同一张画布导出（交叉淡入要对齐）
        其他 bg 键 → {键}.png（layout 里 "optional": true 的层，文件不存在就不显示）
   fog/ fog_puff_01.png … fog_puff_04.png
   mochi/ mochi_pivots.json         支点像素坐标（1024 画布，左上角原点，y 向下）
