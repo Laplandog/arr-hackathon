@@ -4,6 +4,7 @@ import { CONFIG } from './config.js';
 import { loadOrProcedural, canvasTexture, tryLoadTexture } from './assets.js';
 import { PLANE, sharedBright, sharedHaze, trimTexture, trimTexturesUnion } from './layout.js';
 import { Tween, Seq, Scheduler, ease, lerp, rand, bezier, depthOrder, vec3, DEG } from './util.js';
+import { Egg, Constellation, eggGen } from './egg.js';
 
 const TAU = Math.PI * 2;
 const _v = new THREE.Vector3();
@@ -211,6 +212,11 @@ class Orb {
     const O = CONFIG.orb;
     this.baseBoost.go(O.endBoost, 1.5);
     this._run([this._fly(mochiPos.clone().add(vec3(O.endOffset)), 1.2, { arc: 0.15 })]);
+  }
+  /** 飞到指定位置发暖光（孵化时守在龙蛋旁边） */
+  glowAt(pos, dur = 1.2) {
+    this.baseBoost.go(CONFIG.orb.endBoost, 1.5);
+    this._run([this._fly(pos.clone(), dur, { arc: 0.15 })]);
   }
   /** P1 喷嚏：在 Mochi 鼻子前轻轻晃一下 */
   wiggleAt(nose, onDone) {
@@ -534,7 +540,14 @@ export class Effects {
       loadOrProcedural(`${P.fx}fx_comfort_band.png`, gen.band),
     ]);
     if (starVariants.length) console.log(`[fx] 星星 ${starVariants.length} 种颜色，每次送星按顺序换`);
-    return new Effects(world, scene, layout, settings, mochi, audio, { core, glow, stars: starVariants.length ? starVariants : [star.tex], zzz, flames: [f1, f2, f3], band, paper: paperTex });
+    // 龙蛋：冷 / 暖 / 裂纹三张缺了就用代码画；上下半壳缺了就孵化时直接化成一团光
+    const EF = CONFIG.egg.files;
+    const egg = {};
+    await Promise.all(Object.entries(EF).map(async ([k, f]) => {
+      const path = `${P.egg}${f}.png`;
+      egg[k] = ['cold', 'warm', 'crack'].includes(k) ? await loadOrProcedural(path, eggGen.egg(k)) : await tryLoadTexture([path, path.replace(/\.png$/, '.PNG')]);
+    }));
+    return new Effects(world, scene, layout, settings, mochi, audio, { core, glow, stars: starVariants.length ? starVariants : [star.tex], zzz, flames: [f1, f2, f3], band, paper: paperTex, egg });
   }
 
   constructor(world, scene, layout, settings, mochi, audio, tx) {
@@ -578,6 +591,15 @@ export class Effects {
     this.zzz.anchor = () => mochi.zzzWorld(new THREE.Vector3());
     this.membrane = CONFIG.membrane.enabled ? makeMembrane(world) : null;
 
+    // 龙蛋 + 星座
+    const glowTex = eggGen.glow();
+    this.eggSparks = new Particles(world, this.dotTex, 96);
+    this.egg = new Egg(world, tx.egg, { glowTex, beamTex: eggGen.beam(), sparks: this.eggSparks, audio });
+    this.skySparks = new Particles(world, this.dotTex, 200);
+    this.sky = new Constellation(world, {
+      starTexes: tx.stars, slotTex: tx.paper[starIdx]?.tex || null, glowTex, lineTex: eggGen.line(), sparks: this.skySparks, audio,
+    });
+
     this.bgGray = new THREE.Color(CONFIG.world.bgGray);
     this.bgClear = new THREE.Color(CONFIG.world.bgClear);
     this.skyT = new Tween(0);
@@ -590,6 +612,25 @@ export class Effects {
     this.zones = s.zones;
     this.orb.setRest(s.orbRest);
     this.band.apply(s);
+    this.egg.applyLayout(s);
+    this.sky.applyLayout(s);
+  }
+
+  // ── 龙蛋 / 星座 ──
+  /** 一轮完成：星光从天上落到龙蛋上，蛋暖到第 stage 格（只会往前走；重复调用无效） */
+  warmEgg(stage) {
+    if (stage <= this.egg.target || this.egg.hatched) return false;
+    this.egg.target = stage;
+    this.sky.comet(this.egg.center(), () => this.egg.setStage(stage));
+    return true;
+  }
+  /** 全部完成：星光落下 → 龙蛋使劲晃 → 裂开。onPop 在裂开的一瞬调用。返回总时长（秒）。 */
+  hatchEgg(onPop) {
+    if (this.egg.hatched || this.egg.hatching) return 0;
+    this.egg.hatching = true; this.egg.target = 4;
+    const C = CONFIG.constellation, H = CONFIG.egg.hatch;
+    this.sky.comet(this.egg.center(), () => this.egg.hatch(onPop), C.cometSec);
+    return C.cometSec + H.shakeSec + H.popSec;
   }
 
   // ── 雾 / 区域 ──
@@ -667,6 +708,8 @@ export class Effects {
     this.zzz.on.set(0);
     this.stars.clear(); this.flames.clear(); this.sparks.clear(); this.trail.clear(); this.paper.clear();
     for (const ps of this.fogSparks.values()) ps.clear();
+    this.egg.reset(); this.eggSparks.clear(); this.skySparks.clear();
+    // 星座的星数由状态机按模板重建（sky.reset(total)）
   }
 
   update(dt, t) {
@@ -680,6 +723,9 @@ export class Effects {
     this.sparks.mesh.renderOrder = depthOrder(this.mochi.depthZ, 0.8);
     this.sparks.update(dt); this.trail.update(dt);
     for (const ps of this.fogSparks.values()) ps.update(dt);
+    this.egg.update(dt, t); this.sky.update(dt, t);
+    this.eggSparks.mesh.renderOrder = depthOrder(this.egg.group.position.z, 0.07);
+    this.eggSparks.update(dt); this.skySparks.update(dt);
     const k = this.skyT.update(dt);
     this.scene.background.copy(this.bgGray).lerp(this.bgClear, k);
     sharedBright.value = lerp(1, CONFIG.world.endBrightness, k);

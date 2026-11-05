@@ -15,7 +15,7 @@
     "bg_31_island_right":   {"pos": [3.073, 0.986, -7.418], "w": 2.248, "h": 2.616, "anim": "bob", "bobAmp": 0.038, "bobSec": 8.5},
     "bg_25_cloud_04":       {"pos": [2.813, 1.895, -4.95], "w": 0.734, "h": 0.367, "optional": true, "grayStart": true},
     "fx_shell_long":        {"pos": [0.0, 2.862, -4.594], "w": 6.685, "h": 1.459, "optional": true, "dir": "fx"},
-    "bg_25_cloud_03":       {"pos": [-1.812, 2.489, -4.244], "w": 0.845, "h": 0.362, "optional": true, "grayStart": true},
+    "bg_25_cloud_03":       {"pos": [-1.812, 2.2, -4.244], "w": 0.845, "h": 0.362, "optional": true, "grayStart": true},
     "bg_40_island_main":    {"pos": [0.012, -0.148, -3.6], "w": 3.024, "h": 2.172},
     "bg_41_flowers_big":    {"pos": [-0.864, 1.074, -3.3], "w": 0.72, "h": 0.641},
     "bg_41_flowers_small":  {"pos": [0.744, 0.995, -3.375], "w": 0.42, "h": 0.388},
@@ -37,5 +37,7 @@
   "mochi": {"height": 0.72, "homePos": [0.0, 0.812, -2.4]},
   "flight": {"groundY": 0.812},
   "comfortBand": {"w": 1.32, "yMin": 1.34, "yMax": 1.58},
-  "orb": {"restPos": [0.66, 1.28, -1.875]}
+  "orb": {"restPos": [0.66, 1.28, -1.875]},
+  "egg": {"pos": [0.35, 0.72, -2.35], "h": 0.31},
+  "constellation": {"center": [-4.4, 6.8, -11.5], "w": 2.6, "h": 3.5}
 }

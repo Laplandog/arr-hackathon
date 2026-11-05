@@ -12,6 +12,7 @@ export const CONFIG = {
     mochi: 'assets/mochi/',
     fx: 'assets/fx/',
     orb: 'assets/orb/',
+    egg: 'assets/egg/',
     audio: 'assets/audio/',
   },
 
@@ -213,6 +214,34 @@ export const CONFIG = {
 
   zzz: { count: 3, rise: 0.28, sec: 3.0, size: 0.09, sway: 0.03, groupCount: 2, groupW: 0.2, groupRise: 0.16, groupSec: 3.6 },
 
+  // 龙蛋（P1）：放在小窝里 Mochi 右边。位置/大小在 layout.json 的 "egg" 里调（pos = 蛋底中点，h = 蛋高，米）。
+  // 每完成一轮暖一格；格数按模板轮数平均分配，最后一轮完成时正好出现裂纹，END 时孵化。
+  egg: {
+    files: { cold: 'egg_cold', warm: 'egg_warm', crack: 'egg_crack', top: 'egg_shell_top', bottom: 'egg_shell_bottom' },
+    pos: [0.35, 0.72, -2.35], h: 0.31,
+    stageNames: ['冰凉', '微暖发光', '轻轻晃动', '出现裂纹', '孵化'],
+    stageFadeSec: 1.2,
+    crackFromTop: 0.47,            // 裂缝在图里的高度（从上往下 0–1），上半壳绕这里转
+    glow: { color: '#ffb35c', size: 2.1, byStage: [0, 0.4, 0.5, 0.7, 0.9], pulseSec: 2.6, pulseAmp: 0.25 },
+    inner: { color: '#ffe3a0', size: 1.1 },
+    wobble: { deg: [0, 0, 5, 8], everySec: [0, 0, 3.6, 2.4], sec: 0.9 },
+    beam: { color: '#ffd98a', height: 1.6, width: 0.32, opacity: 0.55, inSec: 0.5, holdSec: 1.0, outSec: 0.9 },
+    hatch: { shakeSec: 1.4, shakeDeg: 11, shakes: 6, popSec: 0.9, popUp: 0.24, landX: 0.2, landY: -0.08, restDeg: -40 },
+    orbOffset: [0.2, 0.12, 0.08],  // 孵化时光团在蛋的右上方（y 相对蛋顶）
+  },
+
+  // 星座（P1）：天上一圈蛋形的星位，总星数 = 轮数 × 每轮深呼吸次数。位置在 layout.json 的 "constellation" 里调。
+  constellation: {
+    // 放在左上方的天空：不会被飞起来的 Mochi 挡住，光点从 Mochi 头顶斜着飞上去也看得清
+    center: [-4.4, 6.8, -11.5], w: 2.6, h: 3.5,
+    taper: 0.2, jitter: 0.03,    // 蛋形上窄下宽；星位略微错开一点，像真的星座
+    slotSize: 0.6, slotOpacity: 0.9, slotColor: '#a99ad6', // 还没亮的星：灰紫色小纸星
+    litSize: 0.75, haloScale: 2.2, haloColor: '#ffd98a',
+    lineColor: '#ffe39a', lineWidth: 0.09, lineOpacity: 0.9, lineSec: 0.7, lineSegments: 6,
+    fillColor: '#ffd9a0', fillOpacity: 0.32, fillScale: 1.3,
+    sparkSec: 1.2, cometSec: 1.3, sparkArc: 0.5, sparkAngular: 0.05, sparkColor: '#ffc95c', trailRate: 45,
+  },
+
   membrane: { // 旧的代码画保护膜（带涟漪）。美术把保护膜改成了保护壳（fx_shell_long / fx_shell_short，在 layout.json 里摆），所以关掉
     enabled: false, y: 2.35, center: [0, -1.8], radius: 3.2, opacity: 0.16,
   },
@@ -223,7 +252,7 @@ export const CONFIG = {
     huffDemoSec: 1.7,
     huffFlashLeadSec: 0.2,      // 光团亮一下之后 Mochi 才哈火
     huffStepSec: 1.9,           // 一次确认哈气的整段动画
-    endCelebrateSec: 3.5,
+    endCelebrateSec: 3.5,       // （全部完成时还要加上星光落下 + 龙蛋孵化的时间）
   },
 
   audio: {
@@ -233,7 +262,8 @@ export const CONFIG = {
     pauseMaster: 0.4,
     stepFadeOutSec: 0.2,        // 音效比模板秒数长时，在结束前 0.2 秒淡出
     names: ['bgm_pad_loop', 'sfx_snore', 'sfx_inhale_rise', 'sfx_hold', 'sfx_exhale_fall', 'sfx_huff',
-      'sfx_melt_chime', 'sfx_star', 'sfx_round_complete', 'sfx_sneeze', 'sfx_pat_drum'],
+      'sfx_melt_chime', 'sfx_star', 'sfx_round_complete', 'sfx_sneeze', 'sfx_pat_drum',
+      'sfx_egg_warm', 'sfx_constellation', 'sfx_hatch'],
     synthFallback: false,        // true = 缺音频时用 Web Audio 合成简单占位音（默认按任务书静默跳过）
   },
 

@@ -49,6 +49,13 @@ export class StateMachine {
     this.log = [];
   }
   get s() { return this.getSettings(); }
+  get breathsPerRound() { return Math.max(1, this.template.expansionBreaths | 0); }
+  get totalBreaths() { return Math.max(1, this.template.rounds | 0) * this.breathsPerRound; }
+  /** 完成第 r 轮后龙蛋该到第几格：按轮数平均分，最后一轮正好到“出现裂纹”（3），END 时孵化 */
+  eggStageAfter(r) {
+    const R = Math.max(1, this.template.rounds | 0);
+    return Math.max(1, Math.min(3, Math.round((3 * r) / R)));
+  }
   _log(msg) { console.log(`%c[状态] ${msg}`, 'color:#6a4bc4'); }
 
   // ───────────── 外部接口 ─────────────
@@ -113,6 +120,7 @@ export class StateMachine {
     this.round = 1; this.huffInRound = 0; this.globalHuff = 0; this.breath = 0; this.huffQueued = false;
     this.greeted = false; this.early = false;
     this.fx.resetAll();
+    this.fx.sky.reset(this.totalBreaths);
     this.mochi.reset();
     this.fx.orb.placeFar();
     this.audio.startBgm();
@@ -207,6 +215,8 @@ export class StateMachine {
           m.setHover(true); m.setWings('hover'); m.setEyes('happy');
           fx.band.setBright(true);
           this.audio.play('sfx_hold', { dur: tp.holdSec, tag: 'step' });
+          // 吸满了：从 Mochi 头顶飞起一个光点，点亮天上的一颗星（暂停后重来不会重复点亮）
+          fx.sky.light((this.round - 1) * N + b, m.headTopWorld());
         },
       });
       steps.push({
@@ -293,6 +303,8 @@ export class StateMachine {
       },
       this._wait(() => (this.round < this.template.rounds ? `回窝打呼噜（第 ${this.round}/${this.template.rounds} 轮完成）` : '回窝打呼噜（全部轮次完成）'), () => {
         this._sleepVisuals(); this.audio.loop('sfx_snore', true);
+        // 一轮完成：星光落到龙蛋上，蛋暖一格（进度在这里记下，之后暂停/结束都保留）
+        this.fx.warmEgg(this.eggStageAfter(this.round));
       }),
     ]);
   }
@@ -314,16 +326,17 @@ export class StateMachine {
     m.faceToward(null);
     this.audio.bgmTo(CONFIG.audio.bgmEndVolume, 4);
     if (!early) {
-      // 天空放晴；Mochi 醒来开心；光团飞到 Mochi 身边发暖光；音乐收尾
+      // 天空放晴；Mochi 醒来开心；星光落到龙蛋上，光团（家长）飞到蛋旁边，和 Mochi 一起看着蛋孵化；音乐收尾
       this.audio.loop('sfx_snore', false); fx.zzz.set(false);
       fx.clearSky();
       this.audio.play('sfx_round_complete');
       m.wake();
-      fx.sched.after(0.5, () => m.happy({ spin: true }));
-      fx.orb.endGlow(m.centerWorld());
+      fx.sched.after(0.5, () => m.happy());
+      fx.orb.glowAt(fx.egg.besidePos());
+      const hatchSec = fx.hatchEgg(() => m.happy({ spin: true }));
       this.runner.run([
-        { name: '天空放晴', dur: T.endCelebrateSec },
-        this._wait('完成！（按“重新开始”回到 INTRO）', () => fx.orb.endGlow(m.centerWorld())),
+        { name: hatchSec ? '天空放晴 · 龙蛋孵化' : '天空放晴', dur: Math.max(T.endCelebrateSec, hatchSec + 1.5) },
+        this._wait('完成！（按“重新开始”回到 INTRO）', () => fx.orb.glowAt(fx.egg.besidePos())),
       ]);
     } else {
       // 提前结束：温和收尾，Mochi 飞回窝，已恢复的颜色保留，没有任何“失败”表现

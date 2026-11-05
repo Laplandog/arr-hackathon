@@ -32,6 +32,7 @@ export class Hud {
       `步骤：${sm.stepName || '—'}`,
       sm.canNext() ? '<span style="color:#ffe08a">▶ 等待家长按“下一步”</span>' : '',
       `第 ${sm.round}/${t.rounds} 轮 · 本轮哈气 ${sm.huffInRound}/${t.huffs} · 全局哈气 ${sm.globalHuff}`,
+      sm.fx?.egg ? `龙蛋：${sm.fx.egg.stageName} · 星座 ${sm.fx.sky.lit}/${sm.fx.sky.total} 颗` : '',
       `FPS ${this.fps} · 缺失素材 ${missing}（占位）+ ${report.procedural.length}（代码生成）· 音频缺 ${report.audioMissing.length}`,
       extra.audioLocked ? '<span style="color:#ffb0b0">🔇 点击页面或按任意键启用声音</span>' : '',
       extra.autoplay ? '<span style="color:#9fe8b0">● 自动播放中（D 停止）</span>' : '',

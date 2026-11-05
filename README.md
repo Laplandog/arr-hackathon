@@ -56,10 +56,17 @@ npm run build      # 输出 dist/（Vercel / Netlify 直接用）
 
 - **INTRO**：全灰，4 团雾就位，Mochi 在窝里睡。按下一步 → 光团从远处飞来绕 Mochi 一圈 → SLEEP
 - **SLEEP**：打呼噜（不要求跟拍）。下一步 → 光团送星星 → Mochi 醒来 → FLY
-- **FLY**：舒适带淡入，自动循环 `expansionBreaths` 次（吸气上升 → 悬停 → 滑翔落下）。循环没完成时按键无效；完成后下一步 → 送星星 → HUFF
+- **FLY**：舒适带淡入，自动循环 `expansionBreaths` 次（吸气上升 → 悬停 → 滑翔落下）。每口气吸满停一下时，从 Mochi 头顶飞起一个金色光点，点亮左上方天空里的一颗星。循环没完成时按键无效；完成后下一步 → 送星星 → HUFF
 - **HUFF**：Mochi 先示范一次（不融雾）。每按一次 = 家长确认孩子哈了一次气：光团亮一下 → Mochi 哈火 → 下一团雾融化 → 0.4 秒后区域灰→彩。全局哈气 1–4 依次对应 z1 远景岛、z2 左岛、z3 右岛、z4 主岛花丛。本轮哈满后再按一次 → SETTLE
-- **SETTLE**：飞回小窝打呼噜。还有轮次 → 送星星 → FLY；否则 → END
-- **END**：天空放晴、亮度略升、残雾淡出，Mochi 开心转圈，光团在它身边发暖光
+- **SETTLE**：飞回小窝打呼噜，一道星光从天上落到龙蛋上，蛋暖一格。还有轮次 → 送星星 → FLY；否则 → END
+- **END**：天空放晴、亮度略升、残雾淡出；星光落到龙蛋上，光团飞到蛋旁边，蛋使劲晃几下后裂开（上半壳飞起落到窝边，壳里透出暖光，孵出什么先留悬念），Mochi 开心转圈
+
+### 龙蛋 + 星座（长期目标）
+
+- **星座**：左上方天空有一圈灰紫色的星位，总数 = `rounds × expansionBreaths`（默认 2 × 3 = 6）。每口深吸气点亮一颗，相邻的星用金线沿弧线连起来；全部点亮后闭合成一颗蛋的形状并发光。
+- **龙蛋**：在小窝里 Mochi 右边。冰凉 → 微暖发光 → 轻轻晃动 → 出现裂纹 → 孵化。每完成一轮暖一格，格数按模板轮数平均分配，最后一轮完成时正好出现裂纹，END 时孵化。
+- 只看“完成了阶段”，不看吸多深、哈多用力；暂停后重做同一口气不会多点一颗星；提前结束（E）保留已亮的星和蛋的温度，不孵化；只有重新开始（R）才回到初始。
+- 位置和大小在 `layout.json` 的 `"egg"`（`pos` = 蛋底中点，`h` = 蛋高）和 `"constellation"`（`center`、`w`、`h`）里调；其他数值在 `src/config.js` → `egg` / `constellation`。
 - **PAUSE**：光团靠着 Mochi，Mochi 落地趴下，音量 40%，计时冻结，不弹任何界面。继续时重做当前这口呼吸
 - **结束键**：随时可用；Mochi 飞回窝，已恢复的颜色保留，天空不强行放晴
 
@@ -126,8 +133,12 @@ public/assets/
                         美术给不透明的浅色底星星图时：python tools/prep_stars.py 黄星星.png 紫星星.png
                         → 自动抠图并调色出 黄/紫/陶土橙/青石绿/粉/天蓝 6 张
   orb/ orb_core, orb_glow
+  egg/ egg_cold / egg_warm / egg_crack / egg_shell_top / egg_shell_bottom
+         现在是代替图：python tools/make_paper_egg.py 画的纸艺龙蛋。美术交真图用同名覆盖即可；
+         五张请用同一张画布、蛋在同一个位置导出（叠在一起交叉淡入；上下半壳从裂缝处分开，裂缝高度 = config 里 egg.crackFromTop）
   audio/ bgm_pad_loop, sfx_snore, sfx_inhale_rise, sfx_hold, sfx_exhale_fall, sfx_huff,
-         sfx_melt_chime, sfx_star, sfx_round_complete, sfx_sneeze, sfx_pat_drum   （.mp3）
+         sfx_melt_chime, sfx_star, sfx_round_complete, sfx_sneeze, sfx_pat_drum,
+         sfx_egg_warm, sfx_constellation, sfx_hatch   （.mp3）
 ```
 
 - 没有 `_gray` 时，shader 会把彩色图实时去饱和并偏灰紫，所以 B 可以不做灰版。
@@ -145,6 +156,7 @@ src/assets.js        贴图/JSON 加载、占位图、缺失清单
 src/layout.js        读 layout.json 摆层；灰↔彩材质
 src/mochi.js         剪纸动画（支点、姿势淡入淡出、翅膀/尾巴/肚皮/头）
 src/effects.js       光团、送星、雾融化、区域恢复、舒适带、火苗、Zzz、天空放晴、保护膜
+src/egg.js           龙蛋（变暖、晃动、裂纹、孵化）+ 星座（每口深吸气点亮一颗星）
 src/audio.js         铺底循环 + 各段音效（吸/停/呼音效按模板秒数截断，最后 0.2 秒淡出）
 src/stateMachine.js  状态机（只读 template.json）
 src/input.js         手柄 + 键盘

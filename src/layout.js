@@ -324,7 +324,13 @@ export function parseSettings(data) {
   };
   const orbRest = vec3(o.restPos ?? o.rest_pos ?? d.orb.restPos);
   const zones = Array.isArray(data.zones) && data.zones.length ? data.zones : CONFIG.zones;
-  return { height, homePos, groundY, flightPos, band, orbRest, zones, eyeHeight: +(data.eyeHeight ?? 1.1) };
+  const eg = data.egg || {}, cs = data.constellation || {};
+  const egg = { pos: vec3(eg.pos ?? CONFIG.egg.pos), h: +(eg.h ?? CONFIG.egg.h) || CONFIG.egg.h };
+  const constellation = {
+    center: vec3(cs.center ?? CONFIG.constellation.center),
+    w: +(cs.w ?? CONFIG.constellation.w) || CONFIG.constellation.w, h: +(cs.h ?? CONFIG.constellation.h) || CONFIG.constellation.h,
+  };
+  return { height, homePos, groundY, flightPos, band, orbRest, zones, egg, constellation, eyeHeight: +(data.eyeHeight ?? 1.1) };
 }
 
 export class Layout {
