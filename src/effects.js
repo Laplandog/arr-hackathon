@@ -137,11 +137,13 @@ class Particles {
 
 // ───────────── 光团小精灵（家长的化身） ─────────────
 class Orb {
-  constructor(parent, coreTex, glowTex, trail) {
+  /** coreArt = true：美术的纸片光团（不透明），用普通混合、不染色；代码画的光团用加法混合发光 */
+  constructor(parent, coreTex, glowTex, trail, { coreArt = false, coreAspect = 1, glowArt = false, glowAspect = 1 } = {}) {
     const O = CONFIG.orb;
     this.group = new THREE.Group(); this.group.name = 'orb';
-    this.glow = quad(glowTex, { additive: true, color: O.glowColor });
-    this.core = quad(coreTex, { additive: true, color: O.color });
+    this.coreAspect = coreAspect; this.glowAspect = glowAspect;
+    this.glow = quad(glowTex, { additive: true, color: glowArt ? 0xffffff : O.glowColor });
+    this.core = quad(coreTex, { additive: !coreArt, color: coreArt ? 0xffffff : O.color });
     this.group.add(this.glow, this.core);
     parent.add(this.group);
     this.trail = trail;
@@ -228,9 +230,11 @@ class Orb {
     this.group.position.set(this.pos.x, this.pos.y + bob, this.pos.z);
     const k = this.boost.v * this.baseBoost.v;
     const breath = 1 + O.glowBreathAmp * Math.sin(t * TAU / O.glowBreathPeriod);
-    this.glow.scale.setScalar(O.glowSize * breath * (0.75 + 0.25 * k));
+    const gs = O.glowSize * breath * (0.75 + 0.25 * k);
+    this.glow.scale.set(gs, gs * this.glowAspect, 1);
     this.glow.material.opacity = Math.min(1, 0.75 * k);
-    this.core.scale.setScalar(O.coreSize * (0.85 + 0.15 * k));
+    const cs = O.coreSize * (0.85 + 0.15 * k);
+    this.core.scale.set(cs, cs * this.coreAspect, 1);
     this.core.material.opacity = 1;
     const ro = depthOrder(this.pos.z, 0.7);
     this.glow.renderOrder = ro; this.core.renderOrder = ro + 0.01;
@@ -472,7 +476,15 @@ export class Effects {
     this.sparks = new Particles(world, this.dotTex, 320);   // Mochi 附近（星星、火苗、舒适带）
     this.trail = new Particles(world, this.dotTex, 96);     // 光团拖尾
     this.fogSparks = new Map();                             // 每团雾一组粒子，排序跟着雾的远近
-    this.orb = new Orb(world, tx.core.tex, tx.glow.tex, this.trail);
+    // 美术的光团图：裁掉透明边，按内容宽高比显示
+    const artOpts = (t) => {
+      if (t.procedural) return { art: false, aspect: 1 };
+      const tr = trimTexture(t);
+      const size = tr || t;
+      return { art: true, aspect: size.h / size.w || 1 };
+    };
+    const co = artOpts(tx.core), go = artOpts(tx.glow);
+    this.orb = new Orb(world, tx.core.tex, tx.glow.tex, this.trail, { coreArt: co.art, coreAspect: co.aspect, glowArt: go.art, glowAspect: go.aspect });
     this.stars = new Stars(world, tx.stars, this.sparks, audio);
     const flameProcedural = tx.flames.some((f) => f.procedural);
     const flameTrim = flameProcedural ? null : trimTexturesUnion(tx.flames);

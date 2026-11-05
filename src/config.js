@@ -169,7 +169,7 @@ export const CONFIG = {
   },
 
   orb: {
-    coreSize: 0.09, glowSize: 0.34,
+    coreSize: 0.1, glowSize: 0.34,
     color: '#ffe2a0', glowColor: '#ffc46b',
     farPos: [3.6, 3.0, -7.5],
     bobAmp: 0.025, bobPeriod: 3.2, glowBreathAmp: 0.1, glowBreathPeriod: 2.6,
