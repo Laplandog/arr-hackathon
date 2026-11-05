@@ -103,7 +103,9 @@ public/assets/
          mochi_eye_open / eye_closed / eye_happy
          mochi_mouth_closed / mouth_open / mouth_smile / mochi_blush
          mochi_sleep_body / mochi_sleep_belly        （全部 1024×1024，原位对齐）
-  fx/  fx_zzz, fx_flame_01..03, fx_comfort_band
+  fx/  fx_zzz           美术的整组 Zzz 图：整组往上飘、淡入淡出（两组错开）；没有图时代码画单个 Z
+       fx_flame_01..03, fx_comfort_band
+       fx_dizzy_star    预留：将来碰到保护膜晕乎乎（P2），现在没用到
        fx_star_01..06   光团每次送星星按顺序换一种颜色（都没有时用 fx_star.png，再没有就代码画）
                         美术给不透明的浅色底星星图时：python tools/prep_stars.py 黄星星.png 紫星星.png
                         → 自动抠图并调色出 黄/紫/陶土橙/青石绿/粉/天蓝 6 张

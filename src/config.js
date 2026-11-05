@@ -192,7 +192,8 @@ export const CONFIG = {
     embers: 18,
   },
 
-  zzz: { count: 3, rise: 0.28, sec: 3.0, size: 0.09, sway: 0.03 },
+  // 代码画的单个 Z：count/rise/sec/size；美术的整组 Zzz 图：groupCount/groupW(宽,米)/groupRise/groupSec
+  zzz: { count: 3, rise: 0.28, sec: 3.0, size: 0.09, sway: 0.03, groupCount: 2, groupW: 0.2, groupRise: 0.16, groupSec: 3.6 },
 
   membrane: { // P1：岛上方果冻般的保护膜（只是视觉）
     enabled: true, y: 2.35, center: [0, -1.8], radius: 3.2, opacity: 0.16,

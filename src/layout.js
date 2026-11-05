@@ -74,7 +74,7 @@ function alphaBBox(img) {
 }
 
 /** 把贴图裁到内容范围（只改 UV，不改文件）；返回裁后的宽高像素 */
-function trimTexture(t) {
+export function trimTexture(t) {
   if (!CONFIG.layerRules.trim.enabled || t.placeholder || !t.tex?.image) return null;
   let bb = null;
   try { bb = alphaBBox(t.tex.image); } catch { return null; }

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { loadOrProcedural, canvasTexture, tryLoadTexture } from './assets.js';
-import { PLANE, sharedBright } from './layout.js';
+import { PLANE, sharedBright, trimTexture } from './layout.js';
 import { Tween, Seq, Scheduler, ease, lerp, rand, bezier, depthOrder, vec3, DEG } from './util.js';
 
 const TAU = Math.PI * 2;
@@ -373,9 +373,11 @@ class Band {
 
 // ───────────── Zzz ─────────────
 class Zzz {
-  constructor(parent, tex) {
+  /** group = true：美术给的是一整组“Zzz”，整组往上飘、淡入淡出；否则用代码画的单个 Z，三个错开飘 */
+  constructor(parent, tex, { group = false, aspect = 1 } = {}) {
     const Z = CONFIG.zzz;
-    this.items = Array.from({ length: Z.count }, () => { const q = quad(tex); parent.add(q); return q; });
+    this.group = group; this.aspect = aspect;
+    this.items = Array.from({ length: group ? Z.groupCount : Z.count }, () => { const q = quad(tex); parent.add(q); return q; });
     this.on = new Tween(0);
     this.anchor = () => new THREE.Vector3();
   }
@@ -384,6 +386,20 @@ class Zzz {
     const Z = CONFIG.zzz;
     const a = this.on.update(dt);
     const base = a > 0.002 ? this.anchor() : null;
+    if (this.group) {
+      this.items.forEach((m, i) => {
+        if (!base) { m.visible = false; return; }
+        const ph = ((t / Z.groupSec) + i / this.items.length) % 1;
+        const w = Z.groupW * (0.8 + 0.3 * ph);
+        m.scale.set(w, w * this.aspect, 1);
+        m.position.set(base.x + w * 0.35 + Z.sway * Math.sin(ph * TAU), base.y + w * this.aspect * 0.4 + Z.groupRise * ph, base.z + 0.03);
+        m.rotation.z = 0;
+        m.material.opacity = a * Math.sin(Math.PI * ph);
+        m.visible = m.material.opacity > 0.01;
+        m.renderOrder = depthOrder(m.position.z, 0.8);
+      });
+      return;
+    }
     this.items.forEach((m, i) => {
       if (!base) { m.visible = false; return; }
       const ph = ((t / Z.sec) + i / Z.count) % 1;
@@ -455,7 +471,13 @@ export class Effects {
     const flameProcedural = tx.flames.every((f) => f.procedural);
     this.flames = new Flames(world, tx.flames.map((f) => f.tex), flameProcedural, this.sparks);
     this.band = new Band(world, tx.band.tex, tx.band.procedural, this.sparks);
-    this.zzz = new Zzz(world, tx.zzz.tex);
+    let zzzOpts = {};
+    if (!tx.zzz.procedural) {
+      const tr = trimTexture(tx.zzz);
+      const size = tr || tx.zzz;
+      zzzOpts = { group: true, aspect: size.h / size.w || 1 };
+    }
+    this.zzz = new Zzz(world, tx.zzz.tex, zzzOpts);
     this.zzz.anchor = () => mochi.zzzWorld(new THREE.Vector3());
     this.membrane = CONFIG.membrane.enabled ? makeMembrane(world) : null;
 

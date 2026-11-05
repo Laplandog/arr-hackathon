@@ -122,7 +122,7 @@ export async function loadOrPlaceholder(paths, phOpts = {}) {
 
 /** 读贴图，缺失就用代码生成（make() 返回 Texture）。 */
 export async function loadOrProcedural(path, make) {
-  const r = await tryLoadTexture([path]);
+  const r = await tryLoadTexture([path, path.replace(/\.png$/, '.PNG')]);
   if (r) return { ...r, procedural: false };
   report.procedural.push(path);
   const tex = make();
