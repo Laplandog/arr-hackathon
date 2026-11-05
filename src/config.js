@@ -60,6 +60,8 @@ export const CONFIG = {
       { match: 'cloud', anim: 'drift' },
     ],
     skyKey: 'bg_00_sky',
+    // 自动裁掉四周透明边（只改 UV，不动文件）。内容面积小于整张的 85% 才裁。layout.json 的 w = 看得见的内容宽度
+    trim: { enabled: true, scanPx: 512, margin: 0.005, maxAreaToTrim: 0.85 },
   },
 
   // 全局哈气计数 → 区域。layout.json 里写 "zones" 可以覆盖。
@@ -67,7 +69,7 @@ export const CONFIG = {
     { fog: 'fog_puff_01', layers: ['bg_10_far_islands'] },            // z1 远景岛
     { fog: 'fog_puff_02', layers: ['bg_30_island_left'] },            // z2 左岛
     { fog: 'fog_puff_03', layers: ['bg_31_island_right'] },           // z3 右岛
-    { fog: 'fog_puff_04', layers: ['bg_40_island_main', 'bg_41_flowers'] }, // z4 主岛花丛
+    { fog: 'fog_puff_04', layers: ['bg_40_island_main', 'bg_41_flowers', 'bg_60_fg_grass_left', 'bg_60_fg_grass_right'] }, // z4 主岛花丛 + 前景草
   ],
 
   world: {

@@ -45,13 +45,57 @@ export function makeLayerMaterial(mapA, mapB = null, { gray = 0, side = THREE.Fr
   return mat;
 }
 
+/**
+ * 找出图片里不透明内容的范围（归一化，v 从上往下）。美术常在大画布上导出、四周大片透明：
+ * 裁掉后 layout 的 w 就是“看得见的内容宽度”，也避免在 Quest 上叠出很多全屏透明平面拖慢帧率。
+ */
+function alphaBBox(img) {
+  const T = CONFIG.layerRules.trim;
+  const s = Math.min(1, T.scanPx / Math.max(img.width, img.height));
+  const w = Math.max(1, Math.round(img.width * s)), h = Math.max(1, Math.round(img.height * s));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] > 8) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+  }
+  if (x1 < 0) return null;
+  const m = T.margin * Math.max(w, h);
+  const bb = {
+    u0: Math.max(0, (x0 - m) / w), v0: Math.max(0, (y0 - m) / h),
+    u1: Math.min(1, (x1 + 1 + m) / w), v1: Math.min(1, (y1 + 1 + m) / h),
+  };
+  return (bb.u1 - bb.u0) * (bb.v1 - bb.v0) < T.maxAreaToTrim ? bb : null;
+}
+
+/** 把贴图裁到内容范围（只改 UV，不改文件）；返回裁后的宽高像素 */
+function trimTexture(t) {
+  if (!CONFIG.layerRules.trim.enabled || t.placeholder || !t.tex?.image) return null;
+  let bb = null;
+  try { bb = alphaBBox(t.tex.image); } catch { return null; }
+  if (!bb) return null;
+  t.tex.repeat.set(bb.u1 - bb.u0, bb.v1 - bb.v0);
+  t.tex.offset.set(bb.u0, 1 - bb.v1); // flipY：图片顶部是 v = 1
+  t.tex.needsUpdate = true;
+  return { w: (bb.u1 - bb.u0) * t.w, h: (bb.v1 - bb.v0) * t.h };
+}
+
 export class LayerPlane {
   constructor(key, kind, texA, texB, { gray = 0 } = {}) {
     this.key = key; this.kind = kind;
+    // 灰版/合上版和彩版是同一张画布导出的，shader 里用同一组 UV，所以只按彩版裁
+    const trimmed = trimTexture(texA);
+    if (trimmed) console.log(`[layout] ${key}：自动裁掉透明边 ${texA.w}×${texA.h} → ${Math.round(trimmed.w)}×${Math.round(trimmed.h)}`);
+    const size = trimmed || texA;
     this.mat = makeLayerMaterial(texA.tex, texB?.tex || null, { gray });
     this.mesh = new THREE.Mesh(PLANE, this.mat);
     this.mesh.name = key;
-    this.aspect = texA.h / texA.w || 1;
+    this.aspect = size.h / size.w || 1;
     this.gray = new Tween(gray);
     this.startGray = gray; // 配对层（灰/彩、合上/开放）从 1 开始
     this.base = new THREE.Vector3();
@@ -66,6 +110,9 @@ export class LayerPlane {
     this.mesh.renderOrder = depthOrder(this.base.z, +e.order || 0);
     this.anim = e.anim ?? CONFIG.layerRules.animByName.find((r) => this.key.includes(r.match))?.anim ?? null;
     if (this.kind === 'fog' && !e.anim) this.anim = 'fog';
+    // grayStart：单张彩图也从灰色开始（属于某个区域就随区域恢复，否则 END 天空放晴时恢复）
+    if (e.grayStart && !this._grayInit) { this.startGray = 1; this.gray.set(1); }
+    this._grayInit = true;
     this.enabled = true;
   }
   update(dt, t) {

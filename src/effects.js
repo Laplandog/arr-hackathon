@@ -522,6 +522,8 @@ export class Effects {
       const fog = this.layout.get(z.fog);
       if (fog && !fog.melted) { fog.melted = true; fog.melt.go(1, W.skyClearSec * 0.8, ease.inOutSine); this.recolor(z.layers || [], W.skyClearSec); }
     });
+    // 其余还是灰的层（例如远景云、近处云）随天空一起恢复
+    for (const L of this.layout.layers.values()) if (L.gray.to > 0 || L.gray.v > 0.001) L.gray.go(0, W.skyClearSec, ease.inOutSine);
   }
   resetAll() {
     this.sched.clear();

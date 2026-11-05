@@ -15,7 +15,9 @@ Three.js + WebXR 的“立体书”式 VR 场景，能在 Quest 3 浏览器里�
 
 - 还没上传的图会显示成带文件名的半透明占位方块，所以上传一张就能看到一张。
 - **Mochi 姿势图例外**：美术给的整张姿势图要先用 `tools/prep_poses.py` 处理（去掉零散装饰、统一大小、脚底对齐），再上传生成的 `public/assets/mochi/mochi_pose_*.png` 和 `mochi_poses.json`。见下面“Mochi 整图姿势”。
-- 调位置：改 `public/assets/layout.json`（网页上点文件 → 右上角铅笔图标编辑 → Commit changes）。
+- 调位置：改 `public/assets/layout.json`（网页上点文件 → 右上角铅笔图标编辑 → Commit changes）。`pos` 是看得见的内容的中心，`w` 是看得见的内容的宽：图片四周的透明边程序会自动裁掉，画布大小不影响位置。
+- 新起名字的层（例如 `bg_60_fg_grass_left`）要在 `layout.json` 里加一行才会出现；加 `"grayStart": true` 表示开场也是灰的（属于某个区域就随区域恢复，否则结局放晴时恢复）。
+- 扩展名大小写都可以（`.png` / `.PNG`）。
 - 电脑浏览器里看效果时按 **Space** 推进流程、**D** 自动播放整轮，其他按键见下表。左上角面板显示还缺几张图，按 F12 打开控制台能看到完整缺失清单。
 
 ## 运行
