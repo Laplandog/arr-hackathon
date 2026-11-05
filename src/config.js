@@ -25,7 +25,7 @@ export const CONFIG = {
   layoutDefaults: {
     eyeHeight: 1.1,
     layers: {
-      bg_00_sky: { pos: [0, 1.6, -14], w: 56, h: 28 },
+      bg_00_sky: { pos: [0, 1.6, -14], w: 56, h: 28, dome: true },
       bg_10_far_islands: { pos: [0, 1.7, -9], w: 11, h: 3.2 },
       bg_30_island_left: { pos: [-2.4, 1.0, -4.5], w: 2.6, h: 1.6 },
       bg_31_island_right: { pos: [2.4, 1.0, -4.5], w: 2.6, h: 1.6 },
@@ -60,6 +60,9 @@ export const CONFIG = {
       { match: 'cloud', anim: 'drift' },
     ],
     skyKey: 'bg_00_sky',
+    // 天幕（layout 里 "dome": true 的层）：贴在半径 radius 米的大球内侧。
+    // 图片下沿/上沿对应仰角 elevation（度）；正前方 spanDeg 度显示原图，身后镜像接上；离上下沿 fadeDeg 度开始渐变成边缘颜色
+    dome: { radius: 40, elevation: [-45, 60], spanDeg: 180, fadeDeg: 15 },
     // 自动裁掉四周透明边（只改 UV，不动文件）。内容面积小于整张的 85% 才裁。layout.json 的 w = 看得见的内容宽度
     trim: { enabled: true, scanPx: 512, margin: 0.005, maxAreaToTrim: 0.85 },
   },

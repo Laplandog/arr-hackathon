@@ -162,7 +162,7 @@ async function boot() {
   sm.start();
 
   // 调试用：控制台里 window.mochiDemo.sm.next() 等
-  window.mochiDemo = { THREE, scene, world, renderer, camera, layout, mochi, fx, audio, sm, input, autoplay, report, CONFIG, template };
+  window.mochiDemo = { THREE, scene, world, renderer, camera, layout, mochi, fx, audio, sm, input, autoplay, report, CONFIG, template, look };
 
   // ───────────── 主循环 ─────────────
   const timer = new THREE.Timer();

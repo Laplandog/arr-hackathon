@@ -2,7 +2,7 @@
   "_note": "单位米。孩子在原点，x 右、y 上、前方 -z，地面 y=0，眼高 1.1。pos = 看得见的内容的中心；w = 看得见的内容的宽（图片四周的透明边程序会自动裁掉），高按内容宽高比自动算。h 只在缺图时决定占位矩形的高。optional=true：文件不存在就不显示（不画占位）。桌面模式按 L 重新读取本文件。",
   "eyeHeight": 1.1,
   "layers": {
-    "bg_00_sky":            { "pos": [0, 1.6, -14],        "w": 56,   "h": 28 },
+    "bg_00_sky":            { "pos": [0, 1.6, -14],        "w": 56,   "h": 28, "dome": true, "elevation": [-45, 60], "spanDeg": 180 },
     "bg_20_clouds_far":     { "pos": [0, 2.3, -11],        "w": 15,   "h": 2.3,  "optional": true, "grayStart": true },
     "bg_10_far_islands":    { "pos": [0, 1.7, -9],         "w": 10.4, "h": 1.7 },
     "bg_25_cloud_09":       { "pos": [-5.2, 3.4, -9.5],    "w": 1.9,  "h": 0.7,  "optional": true, "grayStart": true },

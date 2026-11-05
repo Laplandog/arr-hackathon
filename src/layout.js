@@ -167,6 +167,100 @@ export class LayerPlane {
   get center() { return this.base.clone().add(new THREE.Vector3(0, CONFIG.melt.rise * this.melt.v, 0)); }
 }
 
+// ───────────── 天幕：把天空图贴在包住孩子的大球内侧，头转到哪里都看不到纸边 ─────────────
+const SKY_VERT = /* glsl */ `
+varying vec3 vDir;
+void main() {
+  vDir = position;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
+const SKY_FRAG = /* glsl */ `
+uniform sampler2D map; uniform sampler2D uMapB; uniform float uHasB;
+uniform float uGray; uniform vec3 uTint; uniform float uBright;
+uniform vec3 uTop; uniform vec3 uBottom; uniform vec3 uTopB; uniform vec3 uBottomB;
+uniform vec4 uEl;      // x = 图片下沿仰角, y = 上沿仰角, z = 开始渐变到顶色的仰角, w = 开始渐变到底色的仰角（弧度）
+uniform float uSpan;   // 图片横向覆盖多少度（弧度），其余部分镜像接上
+varying vec3 vDir;
+float tri(float x) { return 1.0 - abs(mod(x, 2.0) - 1.0); } // 镜像往复：0→1→0，接缝连续
+void main() {
+  vec3 d = normalize(vDir);
+  float az = atan(d.x, -d.z);                 // 0 = 正前方，右为正
+  float el = asin(clamp(d.y, -1.0, 1.0));
+  float u = tri(0.5 + az / uSpan);
+  float v = clamp((el - uEl.x) / (uEl.y - uEl.x), 0.0, 1.0);
+  vec2 uv = vec2(u, v);
+  // 超出图片上下沿后完全是纯色：头顶 / 脚下不会出现被拉长的放射条纹
+  float ft = smoothstep(uEl.z, uEl.y, el);           // 头顶：渐变成上沿颜色
+  float fb = 1.0 - smoothstep(uEl.x, uEl.w, el);     // 脚下：渐变成下沿颜色
+  vec3 col = texture2D(map, uv).rgb;
+  col = mix(mix(col, uTop, ft), uBottom, fb);
+  vec3 colB = texture2D(uMapB, uv).rgb;
+  colB = mix(mix(colB, uTopB, ft), uBottomB, fb);
+  float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+  vec3 g = mix(vec3(lum) * uTint, colB, uHasB);
+  gl_FragColor = vec4(mix(col, g, uGray) * uBright, 1.0);
+  #include <colorspace_fragment>
+}`;
+
+/** 图片上沿 / 下沿几行的平均色（线性空间），给天幕头顶和脚下做渐变 */
+function edgeColor(img, top) {
+  const out = new THREE.Color(0.6, 0.6, 0.65);
+  try {
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 32;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, 64, 32);
+    const d = g.getImageData(0, top ? 0 : 30, 64, 2).data;
+    let r = 0, gg = 0, b = 0;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; }
+    const n = d.length / 4;
+    out.setRGB(r / n / 255, gg / n / 255, b / n / 255, THREE.SRGBColorSpace);
+  } catch { /* 用默认色 */ }
+  return out;
+}
+
+export class SkyDome {
+  constructor(key, texA, texB, { gray = 1 } = {}) {
+    this.key = key; this.kind = 'bg'; this.isDome = true;
+    this.gray = new Tween(gray); this.startGray = gray;
+    this.melt = new Tween(0); this.melted = false; this.enabled = true;
+    this.base = new THREE.Vector3(); this.offset = new THREE.Vector3(); this.w = 1; this.aspect = 1; this.opacity = 1;
+    const imgA = texA.tex.image, imgB = texB?.tex.image;
+    this.mat = new THREE.ShaderMaterial({
+      uniforms: {
+        map: { value: texA.tex }, uMapB: { value: texB?.tex || texA.tex }, uHasB: { value: texB ? 1 : 0 },
+        uGray: { value: gray }, uTint: { value: TINT }, uBright: sharedBright,
+        uTop: { value: edgeColor(imgA, true) }, uBottom: { value: edgeColor(imgA, false) },
+        uTopB: { value: imgB ? edgeColor(imgB, true) : new THREE.Color() }, uBottomB: { value: imgB ? edgeColor(imgB, false) : new THREE.Color() },
+        uEl: { value: new THREE.Vector4() }, uSpan: { value: Math.PI },
+      },
+      vertexShader: SKY_VERT, fragmentShader: SKY_FRAG,
+      side: THREE.BackSide, depthWrite: false,
+    });
+    this.mat.userData.u = { uGray: this.mat.uniforms.uGray };
+    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(CONFIG.layerRules.dome.radius, 64, 32), this.mat);
+    this.mesh.name = key;
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = -1e9; // 最先画
+  }
+  applyEntry(e) {
+    const D = CONFIG.layerRules.dome;
+    const [lo, hi] = Array.isArray(e.elevation) ? e.elevation : D.elevation;
+    const span = +(e.spanDeg ?? D.spanDeg);
+    this.mat.uniforms.uEl.value.set(lo * DEG, hi * DEG, (hi - D.fadeDeg) * DEG, (lo + D.fadeDeg) * DEG);
+    this.mat.uniforms.uSpan.value = span * DEG;
+    this.mesh.position.set(0, +(e.centerY ?? CONFIG.layoutDefaults.eyeHeight), 0);
+    this.base.copy(vec3(e.pos));
+    this.enabled = true;
+  }
+  update(dt) {
+    this.mat.uniforms.uGray.value = this.gray.update(dt);
+    this.melt.update(dt);
+    this.mesh.visible = this.enabled;
+  }
+  get center() { return this.base.clone(); }
+}
+
 /** 把 layout.json 里各种可能的写法统一成 [{key, kind, pos, w, h, ...}] */
 export function parseLayout(data) {
   const out = new Map();
@@ -277,6 +371,7 @@ export class Layout {
       } else if (!B) {
         report.grayByShader.push(cand(sb)[0]);
       }
+      if (e.dome) return new SkyDome(e.key, A, B, { gray: 1 });
       return new LayerPlane(e.key, e.kind, A, B, { gray: 1 });
     }
     const path = `${dir}${name}.png`;
@@ -286,6 +381,7 @@ export class Layout {
       A = makePlaceholder(path, { aspect: phAspect });
       report.placeholder.push(path);
     }
+    if (e.dome) return new SkyDome(e.key, A, null, { gray: e.grayStart ? 1 : 0 });
     return new LayerPlane(e.key, e.kind, A, null, { gray: 0 });
   }
 
