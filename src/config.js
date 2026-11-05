@@ -51,7 +51,7 @@ export const CONFIG = {
     closedOpen: ['bg_41_flowers', 'bg_41_flowers_small', 'bg_41_flowers_big'],
     // 依次尝试的扩展名（天空可能是 .jpg；网页上传时常见大写 .PNG，网站区分大小写，所以也试大写）
     exts: ['.png', '.PNG', '.jpg', '.JPG'],
-    singleExts: ['.png', '.PNG'],
+    singleExts: ['.png', '.PNG', '.png.png', '.png.PNG'], // Windows 隐藏扩展名时容易导出成 xxx.png.png
     // 没有 _gray 时 shader 实时去饱和并偏灰紫：mix(color, luminance * tint, u_gray)
     grayTint: [0.78, 0.74, 0.86],
     // 名字里带这些词的层自动加一点动画（P1：前景草、近云）
