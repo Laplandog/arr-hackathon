@@ -74,7 +74,7 @@ export const CONFIG = {
     { fog: 'fog_puff_03', layers: ['bg_31_island_right'] },           // z3 右岛
     { fog: 'fog_puff_04', layers: ['bg_40_island_main', 'bg_41_flowers', 'bg_41_flowers_small', 'bg_41_flowers_big',
       'bg_42_nest_back', 'bg_42_nest_front', 'bg_60_fg_grass_left', 'bg_60_fg_grass_right',
-      'bg_61_grass_01', 'bg_61_grass_02', 'bg_61_grass_03'] }, // z4 主岛花丛 + 小窝 + 草
+      'bg_61_grass_01', 'bg_61_grass_02', 'bg_61_grass_03', 'bg_61_grass_04'] }, // z4 主岛花丛 + 小窝 + 前景草
   ],
 
   world: {

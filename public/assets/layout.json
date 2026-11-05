@@ -17,21 +17,22 @@
     "fx_shell_long":        {"pos": [0.0, 2.862, -4.594], "w": 6.685, "h": 1.459, "optional": true, "dir": "fx"},
     "bg_25_cloud_03":       {"pos": [-1.812, 2.489, -4.244], "w": 0.845, "h": 0.362, "optional": true, "grayStart": true},
     "bg_40_island_main":    {"pos": [0.012, -0.148, -3.6], "w": 3.024, "h": 2.172},
-    "bg_61_grass_03":       {"pos": [0.45, 0.98, -3.5], "w": 0.34, "h": 0.3, "file": "bg_61_grass_01", "flipX": true, "optional": true, "grayStart": true},
-    "bg_41_flowers_small":  {"pos": [0.8, 0.81, -3.15], "w": 0.36, "h": 0.3, "file": "bg_41_flowers_big", "flipX": true},
-    "bg_41_flowers_big":    {"pos": [-0.82, 0.893, -3.1], "w": 0.55, "h": 0.45},
-    "bg_61_grass_02":       {"pos": [1.22, 0.795, -3.05], "w": 0.44, "h": 0.32, "optional": true, "grayStart": true},
-    "bg_61_grass_01":       {"pos": [-1.2, 0.82, -3.0], "w": 0.4, "h": 0.35, "optional": true, "grayStart": true},
+    "bg_41_flowers_big":    {"pos": [-0.864, 1.05, -3.3], "w": 0.7, "h": 0.57},
+    "bg_41_flowers_small":  {"pos": [0.744, 0.97, -3.375], "w": 0.4, "h": 0.33, "file": "bg_41_flowers_big", "flipX": true},
     "bg_42_nest_back":      {"pos": [0.0, 0.682, -2.49], "w": 0.96, "h": 0.72, "optional": true, "grayStart": true},
     "fx_shell_short":       {"pos": [0.0, 2.0, -2.49], "w": 1.56, "h": 0.48, "optional": true, "dir": "fx"},
     "bg_42_nest_front":     {"pos": [0.0, 0.621, -2.31], "w": 0.96, "h": 0.6, "optional": true, "grayStart": true},
-    "bg_70_fg_clouds_near": {"pos": [1.56, 2.24, -3.3], "w": 1.32, "h": 0.6, "optional": true, "grayStart": true}
+    "bg_70_fg_clouds_near": {"pos": [1.56, 2.24, -3.3], "w": 1.32, "h": 0.6, "optional": true, "grayStart": true},
+    "bg_61_grass_01":       {"pos": [-0.42, 0.2, -1.9], "w": 0.56, "h": 0.5, "optional": true, "grayStart": true},
+    "bg_61_grass_03":       {"pos": [0.38, 0.17, -1.85], "w": 0.62, "h": 0.55, "file": "bg_61_grass_01", "flipX": true, "optional": true, "grayStart": true},
+    "bg_61_grass_02":       {"pos": [-0.98, 0.2, -1.55], "w": 0.74, "h": 0.54, "optional": true, "grayStart": true},
+    "bg_61_grass_04":       {"pos": [0.95, 0.24, -1.6], "w": 0.66, "h": 0.48, "file": "bg_61_grass_02", "flipX": true, "optional": true, "grayStart": true}
   },
   "fog": {
     "fog_puff_01": {"pos": [0.278, 2.212, -16.931], "w": 5.84, "h": 2.781},
     "fog_puff_02": {"pos": [-2.753, 1.542, -7.021], "w": 2.526, "h": 1.263},
     "fog_puff_03": {"pos": [3.056, 1.883, -7.021], "w": 2.273, "h": 1.263},
-    "fog_puff_04": {"pos": [-0.82, 0.93, -2.95], "w": 0.95, "h": 0.5}
+    "fog_puff_04": {"pos": [-0.864, 1.05, -3.15], "w": 1.05, "h": 0.55}
   },
   "mochi": {"height": 0.72, "homePos": [0.0, 0.812, -2.4]},
   "flight": {"groundY": 0.812},
