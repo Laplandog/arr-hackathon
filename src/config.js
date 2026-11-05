@@ -25,7 +25,7 @@ export const CONFIG = {
   layoutDefaults: {
     eyeHeight: 1.1,
     layers: {
-      bg_00_sky: { pos: [0, 3.0, -14], w: 34, h: 20 },
+      bg_00_sky: { pos: [0, 1.6, -14], w: 56, h: 28 },
       bg_10_far_islands: { pos: [0, 1.7, -9], w: 11, h: 3.2 },
       bg_30_island_left: { pos: [-2.4, 1.0, -4.5], w: 2.6, h: 1.6 },
       bg_31_island_right: { pos: [2.4, 1.0, -4.5], w: 2.6, h: 1.6 },
@@ -49,8 +49,9 @@ export const CONFIG = {
     colorGray: ['bg_00_sky', 'bg_10_far_islands', 'bg_30_island_left', 'bg_31_island_right', 'bg_40_island_main'],
     // 这些键加载 {键}_closed + {键}_open，合上→开放
     closedOpen: ['bg_41_flowers'],
-    // 依次尝试的扩展名（天空可能是 .jpg）
-    exts: ['.png', '.jpg'],
+    // 依次尝试的扩展名（天空可能是 .jpg；网页上传时常见大写 .PNG，网站区分大小写，所以也试大写）
+    exts: ['.png', '.PNG', '.jpg', '.JPG'],
+    singleExts: ['.png', '.PNG'],
     // 没有 _gray 时 shader 实时去饱和并偏灰紫：mix(color, luminance * tint, u_gray)
     grayTint: [0.78, 0.74, 0.86],
     // 名字里带这些词的层自动加一点动画（P1：前景草、近云）
@@ -71,7 +72,7 @@ export const CONFIG = {
 
   world: {
     bgGray: '#a29db0',      // 雾天背景色（天空图后面）
-    bgClear: '#bfe3f7',     // 放晴后的背景色
+    bgClear: '#c6b9d3',     // 放晴后的背景色（接近天空图顶部的淡紫，边缘不露色）
     endBrightness: 1.08,    // END 时整体亮度略升
     skyClearSec: 3,
     fogIdleBob: 0.015,      // 雾团待机上下浮动（米）

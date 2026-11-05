@@ -191,7 +191,7 @@ export class Layout {
     const isClosedOpen = R.closedOpen.includes(e.key) || e.mode === 'closedOpen';
     if (isColorGray || isClosedOpen) {
       const [sa, sb] = isColorGray ? ['color', 'gray'] : ['open', 'closed'];
-      const exts = isColorGray ? R.exts : ['.png'];
+      const exts = isColorGray ? R.exts : R.singleExts;
       const cand = (s) => exts.map((ext) => `${dir}${name}_${s}${ext}`);
       const [a, b] = await Promise.all([tryLoadTexture(cand(sa)), tryLoadTexture(cand(sb))]);
       let A = a, B = b;
@@ -210,7 +210,7 @@ export class Layout {
       return new LayerPlane(e.key, e.kind, A, B, { gray: 1 });
     }
     const path = `${dir}${name}.png`;
-    let A = await tryLoadTexture([path]);
+    let A = await tryLoadTexture(R.singleExts.map((ext) => `${dir}${name}${ext}`));
     if (!A) {
       if (e.optional) { report.optionalMissing.push(path); return null; }
       A = makePlaceholder(path, { aspect: phAspect });
