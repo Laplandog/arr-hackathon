@@ -1,0 +1,11 @@
+{
+  "_note": "示意，非临床参数（Demo 占位值）。将来换成临床人员确认的模板，代码不用改。",
+  "rounds": 2,
+  "expansionBreaths": 3,
+  "inhaleSec": 3,
+  "holdSec": 2,
+  "exhaleSec": 3,
+  "huffs": 2,
+  "includeCough": false,
+  "includePercussion": false
+}

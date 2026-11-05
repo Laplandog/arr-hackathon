@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Mochi 呼吸大冒险 · VR Demo</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #a29db0; }
+      canvas { display: block; }
+      #loading {
+        position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+        font: 600 20px/1.4 system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; color: #fff;
+        text-shadow: 0 1px 3px rgba(0,0,0,.35); pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">Mochi 正在醒来…</div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
