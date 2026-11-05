@@ -299,6 +299,55 @@ class Stars {
   clear() { for (const it of this.active) { it.m.visible = false; this.pool.push(it.m); } this.active = []; }
 }
 
+// ───────────── 纸片（美术的几何纸片：舒适带里闪的四角星、结局飘落的纸屑） ─────────────
+class PaperBits {
+  constructor(parent, texes) {
+    this.parent = parent; this.texes = texes; this.pool = []; this.active = [];
+  }
+  get ready() { return this.texes.length > 0; }
+  _mesh(tex) {
+    const m = this.pool.pop() || (() => { const q = quad(tex); this.parent.add(q); return q; })();
+    m.material.map = tex; m.visible = true;
+    return m;
+  }
+  /** 原地一闪：从 0 放大再缩回（舒适带里的星星） */
+  pop(tex, pos, size, life = 0.9) {
+    const m = this._mesh(tex);
+    m.rotation.z = rand(-0.4, 0.4);
+    this.active.push({ m, kind: 'pop', pos: pos.clone(), size, life, age: 0, spin: rand(-1, 1) });
+  }
+  /** 飘落：边转边左右摆（结局纸屑） */
+  fall(tex, pos, size, { vy = -0.35, sway = 0.12, spin = 2, life = 6 } = {}) {
+    const m = this._mesh(tex);
+    m.rotation.z = rand(0, TAU);
+    this.active.push({ m, kind: 'fall', pos: pos.clone(), size, life, age: 0, vy, sway, swayPh: rand(0, TAU), swayHz: rand(0.3, 0.6), spin: rand(-spin, spin), flipHz: rand(0.4, 1.0) });
+  }
+  update(dt) {
+    for (let i = this.active.length - 1; i >= 0; i--) {
+      const it = this.active[i], m = it.m;
+      it.age += dt;
+      const p = it.age / it.life;
+      if (p >= 1) { m.visible = false; this.pool.push(m); this.active.splice(i, 1); continue; }
+      if (it.kind === 'pop') {
+        const s = it.size * Math.pow(Math.sin(Math.PI * p), 0.6);
+        m.position.copy(it.pos);
+        m.scale.set(s, s * (m.material.map.userData.aspect || 1), 1);
+        m.rotation.z += it.spin * dt;
+        m.material.opacity = 1;
+      } else {
+        it.pos.y += it.vy * dt;
+        m.position.set(it.pos.x + Math.sin(it.age * TAU * it.swayHz + it.swayPh) * it.sway, it.pos.y, it.pos.z);
+        m.rotation.z += it.spin * dt;
+        const flip = Math.cos(it.age * TAU * it.flipHz); // 纸片翻面
+        m.scale.set(it.size * flip, it.size * (m.material.map.userData.aspect || 1), 1);
+        m.material.opacity = Math.min(1, it.age / 0.3) * Math.min(1, (1 - p) / 0.25);
+      }
+      m.renderOrder = depthOrder(m.position.z, 0.75);
+    }
+  }
+  clear() { for (const it of this.active) { it.m.visible = false; this.pool.push(it.m); } this.active = []; }
+}
+
 // ───────────── 火苗 ─────────────
 class Flames {
   constructor(parent, frames, additive, sparks, aspect = 1) {
@@ -316,7 +365,12 @@ class Flames {
     m.visible = true;
     const dx = target.x - from.x, dy = target.y - from.y;
     const ang = Math.abs(dx) + Math.abs(dy) > 0.05 ? Math.atan2(dy, dx) : Math.PI / 2;
-    m.rotation.z = ang - F.artAngleDeg * DEG;
+    if (F.upright && !this.additive) {
+      const lean = Math.max(-F.maxLeanDeg * DEG, Math.min(F.maxLeanDeg * DEG, -(ang - Math.PI / 2) * 0.5));
+      m.rotation.z = lean; // 火尖朝上，往运动的反方向倾斜
+    } else {
+      m.rotation.z = ang - F.artAngleDeg * DEG;
+    }
     this.active.push({ m, t: 0, from: from.clone(), to: target, dur: demo ? dur * 0.7 : dur, demo, onArrive, arrived: false, frameT: 0, frame: 0 });
   }
   update(dt) {
@@ -332,7 +386,7 @@ class Flames {
       } else if (it.frameT >= F.frameSec) { it.frameT = 0; it.frame = (it.frame + 1) % this.frames.length; m.material.map = this.frames[it.frame]; }
       const p = Math.min(1, it.t / it.dur);
       m.position.lerpVectors(it.from, it.to, ease.outQuad(p));
-      const grow = artGrow ? 1 : Math.min(1, p * 3);
+      const grow = Math.min(1, p * 3); // 喷出时从小到大
       const s = F.size * (0.55 + 0.45 * grow) * (it.demo ? 1 - 0.4 * p : 1);
       m.scale.set(s, s * this.aspect, 1);
       m.material.opacity = p < 0.8 ? 1 : (1 - p) / 0.2;
@@ -370,6 +424,14 @@ class Band {
   show(on) { this.op.go(on ? 1 : 0, CONFIG.band.fadeSec); }
   setBright(on) {
     this.bright.go(on ? 1 : 0, 0.4);
+    // 悬停时闪几颗美术的四角星纸片（错开一点时间）
+    if (on && this.s && this.paper?.ready && this.starTex) {
+      const K = CONFIG.fxScale, P = CONFIG.paper;
+      for (let i = 0; i < P.bandStars; i++) {
+        const pos = new THREE.Vector3(this.s.x + rand(-0.45, 0.45) * this.s.w, this.s.center + rand(-0.5, 0.5) * (this.s.yMax - this.s.yMin), this.s.z + 0.03);
+        this.sched?.after(i * 0.18, () => this.paper.pop(this.starTex, pos, P.bandStarSize * K * rand(0.8, 1.2), 0.9));
+      }
+    }
     if (on && this.s) { // 悬停时闪几颗小星
       for (let i = 0; i < CONFIG.band.sparkleCount; i++) {
         const p = new THREE.Vector3(this.s.x + rand(-0.45, 0.45) * this.s.w, this.s.center + rand(-0.4, 0.4) * (this.s.yMax - this.s.yMin), this.s.z + 0.02);
@@ -460,6 +522,7 @@ export class Effects {
     const P = CONFIG.paths;
     const starVariants = (await Promise.all((CONFIG.orb.star.files || []).map((f) => tryLoadTexture([`${P.fx}${f}.png`]))))
       .filter(Boolean).map((r) => r.tex);
+    const paperTex = await Promise.all(CONFIG.paper.files.map((f) => tryLoadTexture([`${P.fx}${f}.png`])));
     const [core, glow, star, zzz, f1, f2, f3, band] = await Promise.all([
       loadOrProcedural(`${P.orb}orb_core.png`, gen.orbCore),
       loadOrProcedural(`${P.orb}orb_glow.png`, gen.orbGlow),
@@ -471,7 +534,7 @@ export class Effects {
       loadOrProcedural(`${P.fx}fx_comfort_band.png`, gen.band),
     ]);
     if (starVariants.length) console.log(`[fx] 星星 ${starVariants.length} 种颜色，每次送星按顺序换`);
-    return new Effects(world, scene, layout, settings, mochi, audio, { core, glow, stars: starVariants.length ? starVariants : [star.tex], zzz, flames: [f1, f2, f3], band });
+    return new Effects(world, scene, layout, settings, mochi, audio, { core, glow, stars: starVariants.length ? starVariants : [star.tex], zzz, flames: [f1, f2, f3], band, paper: paperTex });
   }
 
   constructor(world, scene, layout, settings, mochi, audio, tx) {
@@ -496,6 +559,15 @@ export class Effects {
     const flameSize = flameTrim || tx.flames[0];
     this.flames = new Flames(world, tx.flames.map((f) => f.tex), flameProcedural, this.sparks, flameSize.h / flameSize.w || 1);
     this.band = new Band(world, tx.band.tex, tx.band.procedural, this.sparks);
+    // 美术的几何纸片：有图才用（没有就保持原来的光点）
+    const paperList = tx.paper.filter(Boolean);
+    paperList.forEach((t) => { const tr = trimTexture(t) || t; t.tex.userData.aspect = tr.h / tr.w || 1; });
+    this.paper = new PaperBits(world, paperList.map((t) => t.tex));
+    const starIdx = CONFIG.paper.files.indexOf(CONFIG.paper.bandStar);
+    this.band.paper = this.paper;
+    this.band.starTex = tx.paper[starIdx]?.tex || null;
+    this.band.sched = this.sched;
+    if (paperList.length) console.log(`[fx] 纸片 ${paperList.length} 种：舒适带四角星 + 结局纸屑`);
     let zzzOpts = {};
     if (!tx.zzz.procedural) {
       const tr = trimTexture(tx.zzz);
@@ -571,6 +643,17 @@ export class Effects {
     });
     // 其余还是灰的层（例如远景云、近处云）随天空一起恢复
     for (const L of this.layout.layers.values()) if (L.gray.to > 0 || L.gray.v > 0.001) L.gray.go(0, W.skyClearSec, ease.inOutSine);
+    // 美术的几何纸片从 Mochi 上方飘落（庆祝）
+    if (this.paper.ready) {
+      const P = CONFIG.paper, K = CONFIG.fxScale, c = this.mochi.centerWorld(new THREE.Vector3());
+      for (let i = 0; i < P.confettiCount; i++) {
+        this.sched.after(rand(0, P.confettiSpreadSec), () => {
+          const tex = this.paper.texes[Math.floor(Math.random() * this.paper.texes.length)];
+          const pos = new THREE.Vector3(c.x + rand(-1.6, 1.6) * K, c.y + rand(1.0, 1.6) * K, c.z + rand(-0.8, 0.7) * K);
+          this.paper.fall(tex, pos, P.confettiSize * K * rand(0.7, 1.3), { vy: -rand(0.22, 0.4) * K, sway: 0.12 * K, life: rand(5, 7) });
+        });
+      }
+    }
   }
   resetAll() {
     this.sched.clear();
@@ -582,7 +665,7 @@ export class Effects {
     this.scene.background.copy(this.bgGray);
     this.band.op.set(0); this.band.bright.set(0);
     this.zzz.on.set(0);
-    this.stars.clear(); this.flames.clear(); this.sparks.clear(); this.trail.clear();
+    this.stars.clear(); this.flames.clear(); this.sparks.clear(); this.trail.clear(); this.paper.clear();
     for (const ps of this.fogSparks.values()) ps.clear();
   }
 
@@ -591,6 +674,7 @@ export class Effects {
     this.orb.update(dt, t);
     this.stars.update(dt);
     this.flames.update(dt);
+    this.paper.update(dt);
     this.band.update(dt);
     this.zzz.update(dt, t);
     this.sparks.mesh.renderOrder = depthOrder(this.mochi.depthZ, 0.8);

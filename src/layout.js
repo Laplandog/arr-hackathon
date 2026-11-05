@@ -143,6 +143,9 @@ export class LayerPlane {
     this.mesh.renderOrder = depthOrder(this.base.z, +e.order || 0);
     this.anim = e.anim ?? CONFIG.layerRules.animByName.find((r) => this.key.includes(r.match))?.anim ?? null;
     if (this.kind === 'fog' && !e.anim) this.anim = 'fog';
+    // "flipX": true 水平翻转（同一张图换个方向再用一次）；翻转后背面朝孩子，所以改成双面
+    this.flipX = !!e.flipX;
+    if (this.flipX && this.mat.side !== THREE.DoubleSide) { this.mat.side = THREE.DoubleSide; this.mat.needsUpdate = true; }
     this.bobAmp = e.bobAmp != null ? +e.bobAmp : 0.02;
     this.bobSec = e.bobSec != null ? +e.bobSec : 4;
     // 空气透视：layout 里写 "haze": 0~1 可以覆盖自动值
@@ -175,7 +178,7 @@ export class LayerPlane {
     this.mesh.position.set(this.base.x + ox + this.offset.x, this.base.y + oy + this.offset.y, this.base.z + this.offset.z);
     this.mesh.rotation.z = rz;
     const w = this.w * s * this.scaleMul;
-    this.mesh.scale.set(w, w * this.aspect, 1);
+    this.mesh.scale.set(this.flipX ? -w : w, w * this.aspect, 1);
     this.mat.opacity = alpha;
     this.mesh.visible = this.enabled && alpha > 0.002;
   }

@@ -73,7 +73,8 @@ export const CONFIG = {
     { fog: 'fog_puff_02', layers: ['bg_30_island_left'] },            // z2 左岛
     { fog: 'fog_puff_03', layers: ['bg_31_island_right'] },           // z3 右岛
     { fog: 'fog_puff_04', layers: ['bg_40_island_main', 'bg_41_flowers', 'bg_41_flowers_small', 'bg_41_flowers_big',
-      'bg_42_nest_back', 'bg_42_nest_front', 'bg_60_fg_grass_left', 'bg_60_fg_grass_right'] }, // z4 主岛花丛 + 小窝 + 前景草
+      'bg_42_nest_back', 'bg_42_nest_front', 'bg_60_fg_grass_left', 'bg_60_fg_grass_right',
+      'bg_61_grass_01', 'bg_61_grass_02', 'bg_61_grass_03'] }, // z4 主岛花丛 + 小窝 + 草
   ],
 
   world: {
@@ -194,13 +195,22 @@ export const CONFIG = {
   },
 
   flame: {
-    // 'grow'：fx_flame_01→02→03 从小到大播一遍后停在 03（美术的三帧是火焰从小到大）；'loop'：三帧循环闪
-    mode: 'grow',
+    // 'grow'：fx_flame_01→02→03 播一遍后停在 03，同时火苗从小放大；'loop'：三帧循环闪
+    // upright：美术的火苗是竖直的（火尖朝上）→ 保持朝上，只往运动的反方向倾斜（像被风吹着飞），最多 maxLeanDeg 度
+    // upright = false 时按 artAngleDeg 整个转向飞行方向（0 = 美术图火尖朝右）
+    mode: 'grow', upright: true, maxLeanDeg: 35,
     frameSec: 0.08, size: 0.2, travelSec: 0.75, demoDistance: 0.45, artAngleDeg: 0,
     embers: 18,
   },
 
   // 代码画的单个 Z：count/rise/sec/size；美术的整组 Zzz 图：groupCount/groupW(宽,米)/groupRise/groupSec
+  // 美术的几何纸片（fx_confetti_01…06：圆、菱形、四角星、方块、月牙、三角）
+  paper: {
+    files: ['fx_confetti_01', 'fx_confetti_02', 'fx_confetti_03', 'fx_confetti_04', 'fx_confetti_05', 'fx_confetti_06'],
+    bandStar: 'fx_confetti_03', bandStars: 4, bandStarSize: 0.07, // 吸满悬停时舒适带里闪几颗四角星
+    confettiCount: 36, confettiSpreadSec: 2.5, confettiSize: 0.06,  // 结局放晴时飘落的纸屑
+  },
+
   zzz: { count: 3, rise: 0.28, sec: 3.0, size: 0.09, sway: 0.03, groupCount: 2, groupW: 0.2, groupRise: 0.16, groupSec: 3.6 },
 
   membrane: { // 旧的代码画保护膜（带涟漪）。美术把保护膜改成了保护壳（fx_shell_long / fx_shell_short，在 layout.json 里摆），所以关掉

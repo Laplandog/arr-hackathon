@@ -99,7 +99,11 @@ public/assets/
          bg_41_flowers_small_closed.png + bg_41_flowers_small_open.png
          bg_41_flowers_big_closed.png   + bg_41_flowers_big_open.png
        小窝前后两层（Mochi 夹在中间）：bg_42_nest_back.png、bg_42_nest_front.png
-       散落的云（备用，远景近景都能用）：bg_25_cloud_01.png … bg_25_cloud_04.png（layout 里已预留 4 个位置，可再加）
+       散落的云（备用，远景近景都能用）：bg_25_cloud_01.png … bg_25_cloud_15.png（layout 里摆了 6 朵）
+       云带：bg_21_cloudbank_far（远景岛脚下的云海，16 m）、bg_22_cloudbank_mid（左右岛下方的毛线云，9.5 m）
+       草丛：bg_61_grass_01、bg_61_grass_02（主岛前沿左右），bg_61_grass_03 = grass_01 翻转（篮子后面）
+       现在的花丛：bg_41_flowers_big_closed/open = 草丛合集里配色相同的两丛（开放那丛有小黄花）；
+                   小号花丛在 layout 里用 "file": "bg_41_flowers_big" + "flipX": true 复用同一对图
        其他 bg 键 → {键}.png（layout 里 "optional": true 的层，文件不存在就不显示）
   fog/ fog_puff_01.png … fog_puff_04.png
   mochi/ mochi_pivots.json         支点像素坐标（1024 画布，左上角原点，y 向下）
@@ -113,6 +117,10 @@ public/assets/
        fx_shell_long / fx_shell_short   保护壳（长 / 短）：long 是岛上方的“世界的顶”，short 在 Mochi 飞行区正上方
                         （在 layout.json 里用 "dir": "fx" 摆放；原来代码画的带涟漪保护膜已关掉，fx_ripple 不再需要）
        fx_dizzy_star    预留：将来碰到保护膜晕乎乎（P2），现在没用到
+       fx_confetti_01…06  几何纸片（圆、菱形、四角星、方块、月牙、三角）：
+                        四角星 = 吸满悬停时舒适带里闪的星星；全部 = 结局放晴时飘落的纸屑
+
+合集图拆成单张：python tools/cutout_sheet.py 合集图 输出前缀 [--soft 毛边 | --chroma 绿幕] [--names a,b,c]
        fx_star_01..06   光团每次送星星按顺序换一种颜色（都没有时用 fx_star.png，再没有就代码画）
                         美术给不透明的浅色底星星图时：python tools/prep_stars.py 黄星星.png 紫星星.png
                         → 自动抠图并调色出 黄/紫/陶土橙/青石绿/粉/天蓝 6 张
