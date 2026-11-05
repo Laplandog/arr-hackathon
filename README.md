@@ -144,6 +144,8 @@ src/hud.js           桌面调试面板
 
 调试：控制台里 `mochiDemo.sm.next()`、`mochiDemo.advance(秒)`（页面在后台时手动推进）。
 
+整体调远近：`python tools/push_depth.py 距离近倍数 距离远倍数 看起来大小近 看起来大小远`（默认 `1.5 2.0 0.8 0.7`），会改写 `layout.json`，以孩子眼睛为中心把场景推远，近处推得少、远处推得多；草/篮子/花/雾这些贴在一起的层用同一个换算，不会错位。Mochi 变大变小时，光团、星星、火苗、Zzz 等身边特效自动等比缩放。
+
 ## 部署（GitHub Pages）
 
 `.github/workflows/deploy.yml`：每次 push 到 `main`（包括在 GitHub 网页上传素材）都会自动构建并发布到 https://laplandog.github.io/arr-hackathon/ ，约 1–2 分钟。构建时会输出 `version.json`，页面启动时不走缓存读取它，所以重新部署后刷新就能看到新图。

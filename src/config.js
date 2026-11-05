@@ -62,7 +62,7 @@ export const CONFIG = {
     skyKey: 'bg_00_sky',
     // 天幕（layout 里 "dome": true 的层）：贴在半径 radius 米的大球内侧。
     // 图片下沿/上沿对应仰角 elevation（度）；正前方 spanDeg 度显示原图，身后镜像接上；离上下沿 fadeDeg 度开始渐变成边缘颜色
-    dome: { radius: 40, elevation: [-45, 60], spanDeg: 180, fadeDeg: 15 },
+    dome: { radius: 80, elevation: [-45, 60], spanDeg: 180, fadeDeg: 15 },
     // 自动裁掉四周透明边（只改 UV，不动文件）。内容面积小于整张的 85% 才裁。layout.json 的 w = 看得见的内容宽度
     trim: { enabled: true, scanPx: 512, margin: 0.005, maxAreaToTrim: 0.85 },
   },
@@ -81,7 +81,7 @@ export const CONFIG = {
     bgClear: '#c6b9d3',     // 放晴后的背景色（接近天空图顶部的淡紫，边缘不露色）
     endBrightness: 1.08,    // END 时整体亮度略升
     // 空气透视：离孩子 near 米以内不变，越远越往天空地平线的颜色混，far 米处混到 max
-    haze: { near: 2.5, far: 14, max: 0.45 },
+    haze: { near: 3.5, far: 24, max: 0.45 },
     skyClearSec: 3,
     fogIdleBob: 0.015,      // 雾团待机上下浮动（米）
     fogIdleBreath: 0.02,    // 雾团待机缩放起伏
@@ -176,7 +176,7 @@ export const CONFIG = {
   orb: {
     coreSize: 0.1, glowSize: 0.34,
     color: '#ffe2a0', glowColor: '#ffc46b',
-    farPos: [3.6, 3.0, -7.5],
+    farPos: [6.5, 4.5, -14],
     bobAmp: 0.025, bobPeriod: 3.2, glowBreathAmp: 0.1, glowBreathPeriod: 2.6,
     greet: { approachSec: 1.6, circleSec: 1.8, radius: 0.48, toRestSec: 0.8 },
     // 光团每次送星星按顺序换一种颜色（fx_star_01…06，由 tools/prep_stars.py 生成）；都没有时用 fx_star.png，再没有就代码画
@@ -246,8 +246,30 @@ export const CONFIG = {
   desktop: {
     fov: 70, maxYawDeg: 30, maxPitchDeg: 18, dragSensitivity: 0.15,
     // 桌面视差（VR 里不用，头显本身有立体和视差）：鼠标移动最多平移 x/y 米；鼠标停 idleAfterSec 秒后左右缓慢晃 sway 米
-    parallax: { x: 0.14, y: 0.06, sway: 0.06, swaySec: 9, idleAfterSec: 3 },
+    parallax: { x: 0.2, y: 0.08, sway: 0.08, swaySec: 9, idleAfterSec: 3 },
   },
 
   debug: { infoLogSec: 10, maxTextureSize: 2048 },
+
+  fxScale: 1, // 运行时设置：Mochi 实际高度 / mochi.designHeight
 };
+
+// Mochi 身边的特效尺寸（米）是按 Mochi 高 0.6 m 设计的；场景推远、Mochi 变大时一起等比放大，看起来大小不变
+CONFIG.mochi.designHeight = 0.6;
+const NEAR_FX = [
+  ['orb', 'coreSize'], ['orb', 'glowSize'], ['orb', 'bobAmp'], ['orb', 'greet', 'radius'],
+  ['orb', 'star', 'aboveHead'], ['orb', 'star', 'size'], ['orb', 'snuggleOffset'], ['orb', 'endOffset'],
+  ['flame', 'size'], ['flame', 'demoDistance'],
+  ['zzz', 'size'], ['zzz', 'rise'], ['zzz', 'sway'], ['zzz', 'groupW'], ['zzz', 'groupRise'],
+  ['mochi', 'hover', 'amp'], ['mochi', 'hop', 'height'], ['mochi', 'settleArc'],
+];
+let nearFxBase = null;
+export function scaleNearFx(mochiHeight) {
+  const k = mochiHeight / CONFIG.mochi.designHeight;
+  const get = (p) => p.reduce((o, key) => o[key], CONFIG);
+  const set = (p, v) => { p.slice(0, -1).reduce((o, key) => o[key], CONFIG)[p[p.length - 1]] = v; };
+  if (!nearFxBase) nearFxBase = NEAR_FX.map((p) => structuredClone(get(p)));
+  NEAR_FX.forEach((p, i) => { const b = nearFxBase[i]; set(p, Array.isArray(b) ? b.map((v) => v * k) : b * k); });
+  CONFIG.fxScale = k;
+  return k;
+}

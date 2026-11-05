@@ -1,7 +1,7 @@
 // 入口：renderer、XR、主循环
 import * as THREE from 'three';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
-import { CONFIG } from './config.js';
+import { CONFIG, scaleNearFx } from './config.js';
 import { initAssets, initVersion, fetchJSON, printReport, report, assetVersion } from './assets.js';
 import { Layout } from './layout.js';
 import { Mochi } from './mochi.js';
@@ -31,7 +31,7 @@ const world = new THREE.Group(); // 所有内容都在这里（重新居中时�
 world.name = 'world';
 scene.add(world);
 
-const camera = new THREE.PerspectiveCamera(CONFIG.desktop.fov, window.innerWidth / window.innerHeight, 0.05, 100);
+const camera = new THREE.PerspectiveCamera(CONFIG.desktop.fov, window.innerWidth / window.innerHeight, 0.05, 200);
 camera.position.set(0, 1.1, 0); // 桌面模式：孩子眼高 1.1，看向 -z
 scene.add(camera);
 
@@ -74,6 +74,7 @@ async function boot() {
 
   const layout = new Layout(world);
   let settings = await layout.build(lay.data);
+  console.log(`[mochi] Mochi 高 ${settings.height} m → 身边特效放大 ×${scaleNearFx(settings.height).toFixed(2)}`);
   const mochi = await Mochi.create(world, world, piv.data, settings, poses.data);
   const fx = await Effects.create(world, scene, layout, settings, mochi, audio);
   await audioLoad;
@@ -114,6 +115,7 @@ async function boot() {
   const applySettings = (s) => {
     if (!s) return;
     settings = s;
+    scaleNearFx(s.height);
     mochi.applyLayout(s);
     fx.applyLayout(s);
   };

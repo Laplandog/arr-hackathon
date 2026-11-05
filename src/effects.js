@@ -157,7 +157,7 @@ class Orb {
     const target = to.clone ? to.clone() : to;
     return {
       dur,
-      start: () => { p0 = this.pos.clone(); c = p0.clone().lerp(target, 0.5); c.y += arc; },
+      start: () => { p0 = this.pos.clone(); c = p0.clone().lerp(target, 0.5); c.y += arc * CONFIG.fxScale; },
       update: (p) => bezier(p0, c, target, e(p), this.pos),
     };
   }
@@ -168,15 +168,15 @@ class Orb {
 
   /** 从远处飞来，绕 Mochi 转一圈打招呼，再回到待机位置 */
   greet(center) {
-    const G = CONFIG.orb.greet, r = G.radius;
+    const G = CONFIG.orb.greet, r = G.radius, K = CONFIG.fxScale;
     const c = center.clone();
-    const startPt = c.clone().add(new THREE.Vector3(r, 0.12, 0));
+    const startPt = c.clone().add(new THREE.Vector3(r, 0.12 * K, 0));
     this.baseBoost.go(1, 0.6);
     this._run([
       this._fly(startPt, G.approachSec, { arc: 0.45, e: ease.outCubic }),
       { dur: G.circleSec, update: (p) => {
         const a = ease.inOutSine(p) * TAU;
-        this.pos.set(c.x + r * Math.cos(a), c.y + 0.12 + 0.06 * Math.sin(2 * a), c.z - r * Math.sin(a));
+        this.pos.set(c.x + r * Math.cos(a), c.y + (0.12 + 0.06 * Math.sin(2 * a)) * K, c.z - r * Math.sin(a));
       } },
       this._fly(this.rest, G.toRestSec),
     ]);
@@ -214,10 +214,11 @@ class Orb {
   }
   /** P1 喷嚏：在 Mochi 鼻子前轻轻晃一下 */
   wiggleAt(nose, onDone) {
-    const p = nose.clone().add(new THREE.Vector3(0.1, 0.02, 0.08));
+    const K = CONFIG.fxScale;
+    const p = nose.clone().add(new THREE.Vector3(0.1 * K, 0.02 * K, 0.08 * K));
     this._run([
       this._fly(p, 0.6, { arc: 0.1 }),
-      { dur: 0.6, start: () => { this._wig = this.pos.clone(); }, update: (k) => { this.pos.x = this._wig.x + Math.sin(k * TAU * 3) * 0.035; } },
+      { dur: 0.6, start: () => { this._wig = this.pos.clone(); }, update: (k) => { this.pos.x = this._wig.x + Math.sin(k * TAU * 3) * 0.035 * K; } },
       { dur: 0, start: () => onDone?.() },
       this._fly(this.rest, 0.9),
     ]);
@@ -246,7 +247,8 @@ class Orb {
       this.trailAcc += dt * O.trailRate;
       while (this.trailAcc >= 1) {
         this.trailAcc -= 1;
-        this.trail.emit({ pos: this.pos.clone().add(new THREE.Vector3(rand(-0.02, 0.02), rand(-0.02, 0.02), 0)), vel: [rand(-0.03, 0.03), rand(0, 0.05), 0], life: rand(0.4, 0.8), size: rand(0.015, 0.03), color: '#ffd890', drag: 2 });
+        const K = CONFIG.fxScale;
+        this.trail.emit({ pos: this.pos.clone().add(new THREE.Vector3(rand(-0.02, 0.02) * K, rand(-0.02, 0.02) * K, 0)), vel: [rand(-0.03, 0.03) * K, rand(0, 0.05) * K, 0], life: rand(0.4, 0.8), size: rand(0.015, 0.03) * K, color: '#ffd890', drag: 2 });
       }
     }
   }
@@ -280,7 +282,8 @@ class Stars {
         m.material.opacity = 1;
         if (p >= 1) {
           it.landed = true; it.t = 0;
-          this.sparks.burst(it.to, 14, { speed: 0.4, up: 0.15, life: [0.5, 0.9], size: [0.015, 0.03], colors: ['#fff2a8', '#ffd36b', '#ffffff'] });
+          const K = CONFIG.fxScale;
+          this.sparks.burst(it.to, 14, { speed: 0.4 * K, up: 0.15 * K, life: [0.5, 0.9], size: [0.015 * K, 0.03 * K], spread: 0.1 * K, colors: ['#fff2a8', '#ffd36b', '#ffffff'] });
           it.onLand?.();
         }
       } else {
@@ -334,10 +337,11 @@ class Flames {
       m.scale.set(s, s * this.aspect, 1);
       m.material.opacity = p < 0.8 ? 1 : (1 - p) / 0.2;
       m.renderOrder = depthOrder(m.position.z, 0.85);
-      if (Math.random() < dt * F.embers) this.sparks.emit({ pos: m.position.clone(), vel: [rand(-0.05, 0.05), rand(0.02, 0.1), 0], life: rand(0.3, 0.6), size: rand(0.012, 0.022), color: '#ffb35a', drag: 2 });
+      const K = CONFIG.fxScale;
+      if (Math.random() < dt * F.embers) this.sparks.emit({ pos: m.position.clone(), vel: [rand(-0.05, 0.05) * K, rand(0.02, 0.1) * K, 0], life: rand(0.3, 0.6), size: rand(0.012, 0.022) * K, color: '#ffb35a', drag: 2 });
       if (!it.arrived && p >= 0.85) {
         it.arrived = true;
-        if (it.demo) this.sparks.burst(it.to, 10, { speed: 0.2, up: 0.1, life: [0.4, 0.8], size: [0.012, 0.025], colors: ['#ffd27a', '#fff1b8'] });
+        if (it.demo) this.sparks.burst(it.to, 10, { speed: 0.2 * K, up: 0.1 * K, life: [0.4, 0.8], size: [0.012 * K, 0.025 * K], spread: 0.1 * K, colors: ['#ffd27a', '#fff1b8'] });
         it.onArrive?.();
       }
       if (p >= 1) { m.visible = false; this.pool.push(m); this.active.splice(i, 1); }
@@ -369,7 +373,8 @@ class Band {
     if (on && this.s) { // 悬停时闪几颗小星
       for (let i = 0; i < CONFIG.band.sparkleCount; i++) {
         const p = new THREE.Vector3(this.s.x + rand(-0.45, 0.45) * this.s.w, this.s.center + rand(-0.4, 0.4) * (this.s.yMax - this.s.yMin), this.s.z + 0.02);
-        this.sparks.emit({ pos: p, vel: [0, rand(0.01, 0.05), 0], life: rand(0.8, 1.6), size: rand(0.02, 0.04), color: i % 2 ? '#fff6c8' : '#ffd77a', drag: 1 });
+        const K = CONFIG.fxScale;
+        this.sparks.emit({ pos: p, vel: [0, rand(0.01, 0.05) * K, 0], life: rand(0.8, 1.6), size: rand(0.02, 0.04) * K, color: i % 2 ? '#fff6c8' : '#ffd77a', drag: 1 });
       }
     }
   }

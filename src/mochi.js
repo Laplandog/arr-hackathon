@@ -338,7 +338,7 @@ export class Mochi {
   calm() { this.setEyes('open'); this.setMouth('closed'); this.blushT.go(0, 0.6); this.resting = false; }
 
   wake() {
-    this.setPose('stand'); this.calm(); this.setWings('fold'); this.hop(0.035, 0.4);
+    this.setPose('stand'); this.calm(); this.setWings('fold'); this.hop(C.hop.height * 0.58, 0.4);
   }
 
   /** 暂停：落到地面，切睡姿趴下 */
