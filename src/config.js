@@ -310,11 +310,16 @@ export const CONFIG = {
 
   audio: {
     ext: '.mp3',
-    bgm: 'bgm_pad_loop', bgmVolume: 0.5, bgmEndVolume: 0.3,
+    // 背景音乐按阶段切换：开场/引导前半 intro（瞌睡）· 萤火虫托起和飞行 fly · 其余练习 main（绘本摇篮曲）· 结尾放晴 end
+    bgmTracks: { intro: 'bgm_intro', main: 'bgm_main', fly: 'bgm_fly', end: 'bgm_end' },
+    bgmVolume: 0.55, bgmEndVolume: 0.3,
+    bgmFadeSec: 2.5,            // 换曲子时交叉淡入淡出几秒
+    bgmLoopXfSec: 3,            // 一首放到尾巴之前，交叉淡入接回开头用几秒
+    bgmTargetRms: 0.12,         // 各首按实测响度拉到差不多大
     sfxVolume: 0.9,
     pauseMaster: 0.4,
     stepFadeOutSec: 0.2,        // 音效比模板秒数长时，在结束前 0.2 秒淡出
-    names: ['bgm_pad_loop', 'sfx_snore', 'sfx_inhale_rise', 'sfx_hold', 'sfx_exhale_fall', 'sfx_huff',
+    names: ['sfx_snore', 'sfx_inhale_rise', 'sfx_hold', 'sfx_exhale_fall', 'sfx_huff',
       'sfx_melt_chime', 'sfx_star', 'sfx_round_complete', 'sfx_sneeze', 'sfx_pat_drum',
       'sfx_egg_warm', 'sfx_constellation', 'sfx_hatch'],
     synthFallback: false,        // true = 缺音频时用 Web Audio 合成简单占位音（默认按任务书静默跳过）

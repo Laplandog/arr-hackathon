@@ -5,6 +5,80 @@ import { assetUrl, report } from './assets.js';
 
 const A = CONFIG.audio;
 
+/**
+ * 背景音乐：按阶段切换（交叉淡入淡出）；每首在尾巴淡出之前就交叉淡入接回开头（短曲子循环也不会断、不会有空白）；
+ * 四首按实测响度自动拉平；被别的曲子打断后再回来，从刚才的位置接着放。
+ */
+class Bgm {
+  constructor(mgr) { this.mgr = mgr; this.tracks = {}; this.cur = null; this.want = null; this.vol = A.bgmVolume; this.pos = {}; }
+  /** 量一下这首：开头安静的部分、结尾淡出的部分、整体响度 */
+  add(key, buf) {
+    const ch = [...Array(buf.numberOfChannels)].map((_, i) => buf.getChannelData(i));
+    const win = Math.floor(buf.sampleRate * 0.25), rms = [];
+    for (let s = 0; s + win <= buf.length; s += win) {
+      let acc = 0;
+      for (let i = s; i < s + win; i += 4) for (const c of ch) acc += c[i] * c[i];
+      rms.push(Math.sqrt(acc / (win / 4) / ch.length));
+    }
+    const med = [...rms].sort((a, b) => a - b)[Math.floor(rms.length / 2)] || 0.1;
+    const wsec = win / buf.sampleRate;
+    let i0 = rms.findIndex((v) => v > med * 0.5); if (i0 < 0) i0 = 0;
+    let i1 = rms.length - 1; while (i1 > i0 && rms[i1] < med * 0.6) i1--;
+    const loopStart = Math.min(i0 * wsec, 3), loopEnd = Math.min(buf.duration, (i1 + 1) * wsec);
+    const xf = Math.max(0.5, Math.min(A.bgmLoopXfSec, (loopEnd - loopStart) * 0.2));
+    const gain = Math.max(0.5, Math.min(1.6, A.bgmTargetRms / med));
+    this.tracks[key] = { buf, loopStart, loopEnd, xf, gain };
+    console.log(`[bgm] ${key}：${buf.duration.toFixed(1)} 秒，循环 ${loopStart.toFixed(1)}–${loopEnd.toFixed(1)} 秒，交叉淡入 ${xf.toFixed(1)} 秒，音量 ×${gain.toFixed(2)}`);
+  }
+  _now() { return this.mgr.ctx.currentTime; }
+  _position(v) { return v.offset + (this._now() - v.t0); }
+  _ramp(param, to, sec) {
+    const now = this._now();
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now); else { param.cancelScheduledValues(now); param.setValueAtTime(param.value, now); }
+    param.linearRampToValueAtTime(Math.max(0.0001, to), now + Math.max(0.02, sec));
+  }
+  _fadeOut(v, sec) {
+    this.pos[v.key] = this._position(v);
+    this._ramp(v.g.gain, 0.0001, sec);
+    try { v.src.stop(this._now() + sec + 0.05); } catch { /* 已停 */ }
+  }
+  _start(key, offset, fade) {
+    const ctx = this.mgr.ctx, t = this.tracks[key];
+    const src = ctx.createBufferSource(); src.buffer = t.buf;
+    const g = ctx.createGain(); g.gain.value = 0.0001;
+    src.connect(g); g.connect(this.mgr.listener.getInput());
+    const now = this._now();
+    src.start(now, offset);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(Math.max(0.0001, this.vol * t.gain), now + fade);
+    this.cur = { key, src, g, t, t0: now, offset };
+  }
+  /** 换成某一首（同一首就不动）；还没解锁声音时先记下来，解锁后再放 */
+  play(key, fade = A.bgmFadeSec) {
+    if (!this.tracks[key]) key = this.tracks.main ? 'main' : Object.keys(this.tracks)[0];
+    if (!key) return;
+    this.want = key;
+    if (!this.mgr.unlocked) return;
+    if (this.cur?.key === key) return;
+    if (this.cur) this._fadeOut(this.cur, fade);
+    const t = this.tracks[key];
+    let off = this.pos[key] ?? 0;
+    if (off > t.loopEnd - t.xf - 1) off = t.loopStart;
+    this._start(key, off, fade);
+  }
+  setVolume(v, sec = 2) { this.vol = v; if (this.cur) this._ramp(this.cur.g.gain, v * this.cur.t.gain, sec); }
+  stop(fade = 0.8) { if (this.cur) { this._fadeOut(this.cur, fade); this.cur = null; } this.pos = {}; }
+  update() {
+    if (!this.mgr.unlocked) return;
+    if (!this.cur) { if (this.want && this.mgr.wantBgm) this.play(this.want); return; }
+    const c = this.cur, t = c.t;
+    if (this._position(c) >= t.loopEnd - t.xf) { // 快到尾巴了：交叉淡入接回开头
+      this._fadeOut(c, t.xf);
+      this._start(c.key, t.loopStart, t.xf);
+    }
+  }
+}
+
 export class AudioMgr {
   constructor(camera) {
     this.listener = new THREE.AudioListener();
@@ -13,17 +87,22 @@ export class AudioMgr {
     this.buffers = {};
     this.tags = new Map();   // tag → Set<THREE.Audio>
     this.loops = {};         // name → THREE.Audio
-    this.bgm = null; this.wantBgm = false; this.bgmVol = A.bgmVolume;
+    this.wantBgm = false;
+    this.bgm = new Bgm(this);
     this.synthCache = new Map();
   }
   get unlocked() { return this.ctx.state === 'running'; }
 
   async loadAll() {
     const loader = new THREE.AudioLoader();
-    await Promise.all(A.names.map(async (n) => {
+    const load = async (n) => {
       const path = `${CONFIG.paths.audio}${n}${A.ext}`;
-      try { this.buffers[n] = await loader.loadAsync(assetUrl(path)); } catch { report.audioMissing.push(path); }
-    }));
+      try { return await loader.loadAsync(assetUrl(path)); } catch { report.audioMissing.push(path); return null; }
+    };
+    await Promise.all([
+      ...A.names.map(async (n) => { const b = await load(n); if (b) this.buffers[n] = b; }),
+      ...Object.entries(A.bgmTracks).map(async ([key, n]) => { const b = await load(n); if (b) this.bgm.add(key, b); }),
+    ]);
     if (report.audioMissing.length) console.warn(`[audio] ${report.audioMissing.length} 个音频缺失，静默跳过${A.synthFallback ? '（用合成占位音）' : ''}`);
   }
 
@@ -31,8 +110,11 @@ export class AudioMgr {
   unlock() {
     if (this.ctx.state !== 'running') {
       this.ctx.resume().then(() => { console.log('[audio] AudioContext 已解锁'); if (this.wantBgm) this._startBgm(); }).catch(() => {});
-    } else if (this.wantBgm && !this.bgm) this._startBgm();
+    } else if (this.wantBgm && !this.bgm.cur) this._startBgm();
   }
+  update() { this.bgm.update(); }
+  /** 换背景音乐：'intro' | 'main' | 'fly' | 'end' */
+  bgmPlay(key, fade) { this.bgm.play(key, fade); }
 
   _buf(name, dur) {
     if (this.buffers[name]) return this.buffers[name];
@@ -107,19 +189,9 @@ export class AudioMgr {
   startBgm() { this.wantBgm = true; if (this.unlocked) this._startBgm(); }
   _startBgm() {
     if (this._pendingLoops) { const p = this._pendingLoops; this._pendingLoops = null; for (const [n, v] of Object.entries(p)) this.loop(n, true, v); }
-    if (this.bgm) return;
-    const buf = this._buf(A.bgm, null);
-    if (!buf) return;
-    this.bgm = new THREE.Audio(this.listener);
-    this.bgm.setBuffer(buf); this.bgm.setLoop(true);
-    this.bgm.gain.gain.value = 0.0001;
-    this.bgm.play();
-    this.bgm.gain.gain.setTargetAtTime(this.bgmVol, this.ctx.currentTime, 0.6);
+    if (!this.bgm.cur) this.bgm.play(this.bgm.want || 'intro');
   }
-  bgmTo(v, sec = 2) {
-    this.bgmVol = v;
-    if (this.bgm) this.bgm.gain.gain.setTargetAtTime(v, this.ctx.currentTime, Math.max(0.05, sec / 3));
-  }
+  bgmTo(v, sec = 2) { this.bgm.setVolume(v, sec); }
   setMaster(v, sec = 0.4) { this.listener.gain.gain.setTargetAtTime(v, this.ctx.currentTime, Math.max(0.02, sec / 3)); }
   stopAllSfx() {
     for (const t of this.tags.keys()) this.stopTag(t);

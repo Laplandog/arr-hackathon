@@ -180,9 +180,16 @@ public/assets/
   egg/ egg_cold / egg_warm / egg_crack / egg_shell_top / egg_shell_bottom
          现在是代替图：python tools/make_paper_egg.py 画的纸艺龙蛋。美术交真图用同名覆盖即可；
          五张请用同一张画布、蛋在同一个位置导出（叠在一起交叉淡入；上下半壳从裂缝处分开，裂缝高度 = config 里 egg.crackFromTop）
-  audio/ bgm_pad_loop, sfx_snore, sfx_inhale_rise, sfx_hold, sfx_exhale_fall, sfx_huff,
+  audio/ 背景音乐（Suno 生成，按阶段自动切换、交叉淡入淡出）：
+           bgm_intro  开场 + 引导前半（瞌睡的灰色世界）
+           bgm_fly    萤火虫托起 Mochi + 正式练习的飞行（深呼吸）
+           bgm_main   其余练习时间（绘本摇篮曲）
+           bgm_end    全部完成：放晴 + 龙蛋孵化
+         每首放到尾巴淡出之前，会交叉淡入接回开头（短曲子循环也不断）；四首按实测响度自动拉平；
+         被别的曲子打断后再回来，从刚才的位置接着放。换曲子：同名覆盖即可（越长越不容易听出重复）。
+         音效：sfx_snore, sfx_inhale_rise, sfx_hold, sfx_exhale_fall, sfx_huff,
          sfx_melt_chime, sfx_star, sfx_round_complete, sfx_sneeze, sfx_pat_drum,
-         sfx_egg_warm, sfx_constellation, sfx_hatch   （.mp3）
+         sfx_egg_warm, sfx_constellation, sfx_hatch   （.mp3）；旁白 vo_{台词键}.mp3
 ```
 
 - 没有 `_gray` 时，shader 会把彩色图实时去饱和并偏灰紫，所以 B 可以不做灰版。

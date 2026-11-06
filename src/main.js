@@ -188,6 +188,7 @@ async function boot() {
     autoplay.update(dt);
     head.update(dt);
     voice.update(dt);
+    audio.update();
     sm.update(dt);
     mochi.update(dt, t);
     fx.update(dt, t);

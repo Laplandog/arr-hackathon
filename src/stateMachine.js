@@ -130,6 +130,7 @@ export class StateMachine {
   restart() {
     this.paused = false; this.runner.cancel(); this.runner.frozen = false;
     this.audio.setMaster(1); this.audio.stopAllSfx(); this.audio.bgmTo(CONFIG.audio.bgmVolume, 1);
+    this.audio.bgm.pos = {}; // 新的一次：每首都从头放
     this.round = 1; this.huffInRound = 0; this.globalHuff = 0; this.breath = 0; this.huffQueued = false;
     this.greeted = false; this.early = false;
     this.tutorial?.stop();
@@ -153,6 +154,9 @@ export class StateMachine {
   enter(name, opts = {}) {
     this.state = name;
     this._log(`→ ${name}`);
+    // 背景音乐跟着阶段换（END 在 enter_END 里按是否提前结束决定）
+    const track = { INTRO: 'intro', TUTORIAL: 'intro', SLEEP: 'main', FLY: 'fly', HUFF: 'main', SETTLE: 'main' }[name];
+    if (track) this.audio.bgmPlay(track);
     this[`enter_${name}`](opts);
   }
 
@@ -351,7 +355,9 @@ export class StateMachine {
     this.audio.stopTag('step');
     fx.band.show(false);
     m.faceToward(null);
-    this.audio.bgmTo(CONFIG.audio.bgmEndVolume, 4);
+    // 全部完成：换成结尾的曲子（放晴 + 孵化）；提前结束：当前的曲子慢慢变小
+    if (early) this.audio.bgmTo(CONFIG.audio.bgmEndVolume, 4);
+    else this.audio.bgmPlay('end', 1.5);
     if (!early) {
       // 天空放晴；Mochi 醒来开心；星光落到龙蛋上，光团（家长）飞到蛋旁边，和 Mochi 一起看着蛋孵化；音乐收尾
       this.audio.loop('sfx_snore', false); fx.zzz.set(false);

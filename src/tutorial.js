@@ -401,6 +401,7 @@ export class Tutorial {
       name: '吸一吸（萤火虫托起 Mochi）', lines: [], autoAt: T.swarmArriveSec, confirm: false,
       enter: () => {
         m.wake(); this.fx.zzz.set(false); this.audio.loop('sfx_snore', false); m.faceToward(null); m.setWaitMode(true);
+        this.audio.bgmPlay('fly'); // 萤火虫托起 Mochi：换成飞行的曲子
         this._after(0.3, () => this._say('inhale_1'));
         this._after(0.6, () => m.lookUp(1.2));
         home = this.head.local(T.swarmDist, T.swarmDown);
@@ -493,6 +494,7 @@ export class Tutorial {
       name: '哈一哈', lines: ['huff_1', 'huff_2', 'huff_3'], autoAt: 38, confirm: true,
       enter: () => {
         m.setPose('stand'); m.faceToward(null); m.setWaitMode(false); m.calm(); this.fx.zzz.set(false);
+        this.audio.bgmPlay('main'); // 世界醒过来了：换成绘本摇篮曲（一直用到正式练习）
         m.cold.go(1, 1.2); m.extra.shiver = 1;
         m.forcePose = 'cold'; // 美术交了 mochi_pose_cold（冷得缩成一团的表情）就用它，没有就用平常的站姿
         cold = new ColdFX(this, (o) => o.copy(m.root.position), m.S); cold.on();
