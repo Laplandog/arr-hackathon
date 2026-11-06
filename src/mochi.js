@@ -97,6 +97,9 @@ export class Mochi {
     this.action = null;  // 头部动作（哈火、喷嚏…）
     this.move = null;    // 复合移动（飞回窝）
     this.queue = [];
+    // 新手引导用的叠加动作：学孩子歪头/转头/抬头（lean 度、x/y 米），冷得发抖（shiver 0–1）
+    this.extra = { lean: 0, x: 0, y: 0, shiver: 0 };
+    this._extra = { lean: 0, x: 0, y: 0, shiver: 0 };
     this.applyLayout(settings);
     this.reset();
   }
@@ -259,6 +262,7 @@ export class Mochi {
     this.standW.set(0); this.blushT.set(0); this.hoverAmt.set(0); this.spinT.set(0);
     this.setWings('fold', 0); this.eyes = 'open'; this.mouth = 'closed'; this.waitMode = false; this.flying = false;
     this.resting = false; this.sneezing = false;
+    if (this.extra) { Object.assign(this.extra, { lean: 0, x: 0, y: 0, shiver: 0 }); Object.assign(this._extra, this.extra); }
     if (this.mode === 'sprite') { this.spriteCur = 'sleep'; this.spritePrev = null; this.spriteBlend = 1; }
   }
   setPose(p, dur = C.poseFadeSec) { this.standW.go(p === 'stand' ? 1 : 0, dur, ease.linear); }
@@ -311,6 +315,25 @@ export class Mochi {
       { dur: H.pushSec, start: () => { this.setMouth('open'); onRelease?.(); }, update: (p) => this.head.set(lerp(H.backDeg * sg, H.forwardDeg * sg, ease.outCubic(p))) },
       { dur: H.holdSec },
       { dur: H.recoverSec, start: () => this.setMouth('closed'), update: (p) => this.head.set(lerp(H.forwardDeg * sg, 0, ease.inOutSine(p))) },
+    ]);
+  }
+
+  /** 打一个又大又慢的哈欠（张嘴 + 头往后仰，比哈火慢很多） */
+  yawn(onDone) {
+    const sg = C.huff.headSign;
+    this._act([
+      { dur: 0.7, start: () => { this.setEyes('closed'); this.setMouth('open'); }, update: (p) => this.head.set(lerp(0, -10 * sg, ease.inOutSine(p))) },
+      { dur: 0.9 },
+      { dur: 0.7, start: () => this.setMouth('closed'), update: (p) => this.head.set(lerp(-10 * sg, 0, ease.inOutSine(p))), end: () => this.setEyes('open') },
+    ], onDone);
+  }
+  /** 抬头望天（想飞上去）：头往后仰一会儿再回来 */
+  lookUp(sec = 1.6) {
+    const sg = C.huff.headSign;
+    this._act([
+      { dur: 0.5, update: (p) => this.head.set(lerp(0, -9 * sg, ease.inOutSine(p))) },
+      { dur: sec },
+      { dur: 0.5, update: (p) => this.head.set(lerp(-9 * sg, 0, ease.inOutSine(p))) },
     ]);
   }
 
@@ -397,10 +420,16 @@ export class Mochi {
     for (const tw of [this.x, this.y, this.z, this.belly, this.head, this.hopY, this.yaw, this.face, this.standW,
       this.blushT, this.hoverAmt, this.spinT, this.wingBlend]) tw.update(dt);
 
+    // 叠加动作平滑跟随（学孩子的头 / 发抖）
+    const ex = this._extra, k = Math.min(1, dt * 8);
+    for (const key of ['lean', 'x', 'y', 'shiver']) ex[key] += (this.extra[key] - ex[key]) * k;
+    const shx = ex.shiver * Math.sin(t * 55) * 0.006 * this.S, shr = ex.shiver * Math.sin(t * 47) * 2.2;
+
     // 位置
     const hov = Math.sin(t * TAU / C.hover.period) * C.hover.amp * this.hoverAmt.v;
-    this.root.position.set(this.x.v, this.y.v + hov + this.hopY.v, this.z.v);
+    this.root.position.set(this.x.v + ex.x + shx, this.y.v + hov + this.hopY.v + ex.y, this.z.v);
     this.root.rotation.y = this.yaw.v * DEG;
+    this.root.rotation.z = (ex.lean + shr) * DEG;
     const spin = this.spinT.v > 0 ? Math.cos(this.spinT.v * TAU) : 1; // 纸片翻面
     this.flipG.scale.set(this.S * this.face.v * spin, this.S, this.S);
     if (this.mode === 'sprite') { this._updateSprite(dt, t); return; }

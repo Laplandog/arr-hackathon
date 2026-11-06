@@ -7,5 +7,7 @@
   "exhaleSec": 3,
   "huffs": 2,
   "includeCough": false,
-  "includePercussion": false
+  "includePercussion": false,
+  "tutorial": true,
+  "_tutorial": "true = 开场先走新手引导「Mochi 醒来的第一天」（第一次玩）；false = 直接进入练习（以后再玩）"
 }

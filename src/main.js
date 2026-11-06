@@ -10,6 +10,9 @@ import { AudioMgr } from './audio.js';
 import { StateMachine } from './stateMachine.js';
 import { Input } from './input.js';
 import { Hud } from './hud.js';
+import { Head } from './head.js';
+import { Voice } from './voice.js';
+import { Tutorial } from './tutorial.js';
 import { DEG, clamp } from './util.js';
 
 // ───────────── renderer / XR ─────────────
@@ -60,17 +63,20 @@ window.addEventListener('pointermove', (e) => {
 async function boot() {
   await initVersion();
   const P = CONFIG.paths;
-  const [tpl, lay, piv, poses] = await Promise.all([
+  const [tpl, lay, piv, poses, vo] = await Promise.all([
     fetchJSON(P.template, CONFIG.templateDefaults),
     fetchJSON(P.layout, CONFIG.layoutDefaults),
     fetchJSON(P.pivots, {}),
     fetchJSON(P.poses, null),
+    fetchJSON(P.voice, { lines: {} }),
   ]);
   const template = { ...CONFIG.templateDefaults, ...tpl.data };
   console.log('[template] 示意，非临床参数：', template);
 
   const audio = new AudioMgr(camera);
-  const audioLoad = audio.loadAll();
+  const voice = new Voice(audio, vo.data);
+  const audioLoad = Promise.all([audio.loadAll(), voice.loadAll()]);
+  const head = new Head(renderer, camera, world);
 
   const layout = new Layout(world);
   let settings = await layout.build(lay.data);
@@ -80,6 +86,8 @@ async function boot() {
   await audioLoad;
 
   const sm = new StateMachine({ template, mochi, fx, audio, getSettings: () => settings });
+  sm.tutorial = await Tutorial.create(world, { mochi, fx, voice, head, audio, layout, template, settings: () => settings });
+  sm.voice = voice;
   const hud = new Hud();
 
   // ── P1：录制自动播放（按 D，或网址加 ?autoplay=1 进 VR 后自动开始） ──
@@ -122,6 +130,8 @@ async function boot() {
 
   const input = new Input(renderer, {
     next: () => sm.next(),
+    hint: () => sm.hint(),
+    skipTutorial: () => sm.skipTutorial(),
     pause: () => sm.togglePause(),
     end: () => { autoplay.on = false; sm.end(); },
     restart: () => { sm.restart(); if (autoplay.on) autoplay.t = 0; },
@@ -162,12 +172,12 @@ async function boot() {
 
   document.getElementById('loading')?.remove();
   printReport();
-  console.log(`[mochi] 素材版本 ?v=${assetVersion()}。键盘：Space 下一步 · P 暂停 · E 结束 · R 重新开始 · L 重读 layout · H 隐藏面板 · D 自动播放`);
+  console.log(`[mochi] 素材版本 ?v=${assetVersion()}。键盘：Space 下一步/孩子做到了 · T 提示 · S 跳过引导 · P 暂停 · E 结束 · R 重新开始 · L 重读 layout · H 隐藏面板 · D 自动播放`);
 
   sm.start();
 
   // 调试用：控制台里 window.mochiDemo.sm.next() 等
-  window.mochiDemo = { THREE, scene, world, renderer, camera, layout, mochi, fx, audio, sm, input, autoplay, report, CONFIG, template, look };
+  window.mochiDemo = { THREE, scene, world, renderer, camera, layout, mochi, fx, audio, sm, input, autoplay, report, CONFIG, template, look, head, voice, tutorial: sm.tutorial };
 
   // ───────────── 主循环 ─────────────
   const timer = new THREE.Timer();
@@ -176,6 +186,8 @@ async function boot() {
     t += dt;
     input.poll(dt);
     autoplay.update(dt);
+    head.update(dt);
+    voice.update(dt);
     sm.update(dt);
     mochi.update(dt, t);
     fx.update(dt, t);
@@ -191,7 +203,7 @@ async function boot() {
       look.ox += (tx - look.ox) * k; look.oy += (ty - look.oy) * k;
       camera.position.set(look.ox, 1.1 + look.oy, 0);
     }
-    hud.update(dt, sm, { audioLocked: !audio.unlocked, autoplay: autoplay.on });
+    hud.update(dt, sm, { audioLocked: !audio.unlocked, autoplay: autoplay.on, voice });
     renderer.render(scene, camera);
     if ((infoT += dt) >= CONFIG.debug.infoLogSec) {
       infoT = 0;

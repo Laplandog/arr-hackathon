@@ -1,0 +1,36 @@
+{
+  "_note": "旁白台词（讲故事的人，第三人称）。新手引导每一段都是：先安静等几秒 → 第 1 句说 Mochi 怎么了 → 第 2 句给线索 → 第 3 句才说怎么帮。孩子自己做到了，后面的句子就不会播。录好的音频放 assets/audio/vo_{键}.mp3（例如 vo_huff_1.mp3），没有音频时浏览器用语音合成念。规则：每句十个字左右；不用命令句（不说“你要/请/再来”）；只夸“帮到了”，不夸“更用力/更多”。",
+  "lines": {
+    "wake_1":     {"text": "嘘……Mochi 还在睡觉呢。"},
+    "wake_2":     {"text": "看看它，说不定它会醒哦。"},
+    "wake_ok":    {"text": "Mochi 醒啦！"},
+
+    "mirror_1":   {"text": "咦？Mochi 好像在学你哦。"},
+    "mirror_2":   {"text": "歪歪头试试？"},
+    "mirror_3":   {"text": "点点头，看它学不学？"},
+    "mirror_ok":  {"text": "Mochi 学得真像！"},
+
+    "relax_1":    {"text": "嘘……Mochi 困了。"},
+    "relax_2":    {"text": "小萤火虫只敢靠近安静的小朋友哦。"},
+    "relax_3":    {"text": "陪 Mochi 安安静静待一会儿吧。"},
+    "relax_ok":   {"text": "萤火虫来啦！"},
+
+    "smell_1":    {"text": "Mochi 想飞到云上去，可它还不会飞……"},
+    "smell_2":    {"text": "花好香呀……闻一闻，说不定有魔法？"},
+    "smell_3":    {"text": "深深吸一口花香，Mochi 就会学你飞起来！"},
+    "smell_ok":   {"text": "Mochi 飞起来啦！"},
+    "smell_hold": {"text": "嘘——露珠要掉了……"},
+    "smell_down": {"text": "Mochi 要降落啦……"},
+
+    "huff_1":     {"text": "Mochi 好冷呀……"},
+    "huff_2":     {"text": "它的小火苗快熄了……"},
+    "huff_3":     {"text": "哈一口热气，帮它暖暖吧！"},
+    "huff_ok":    {"text": "Mochi 暖和啦！谢谢你！"},
+
+    "cough_1":    {"text": "哎呀，有颗小种子卡在 Mochi 喉咙里了……"},
+    "cough_3":    {"text": "咳一下，帮它把种子弄出来？"},
+    "cough_ok":   {"text": "种子飞走啦！"},
+
+    "egg_1":      {"text": "龙蛋好冰呀……我们一起让它暖起来吧！"}
+  }
+}

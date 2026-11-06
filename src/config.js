@@ -5,6 +5,7 @@ export const CONFIG = {
   paths: {
     template: 'config/template.json',
     layout: 'assets/layout.json',
+    voice: 'config/voice.json',
     pivots: 'assets/mochi/mochi_pivots.json',
     poses: 'assets/mochi/mochi_poses.json',
     bg: 'assets/bg/',
@@ -19,8 +20,25 @@ export const CONFIG = {
   // template.json 读不到时的兜底（示意，非临床参数）
   templateDefaults: {
     rounds: 2, expansionBreaths: 3, inhaleSec: 3, holdSec: 2, exhaleSec: 3,
-    huffs: 2, includeCough: false, includePercussion: false,
+    huffs: 2, includeCough: false, includePercussion: false, tutorial: true,
   },
+
+  // 新手引导「Mochi 醒来的第一天」（src/tutorial.js）。模板里 "tutorial": false 就跳过（第二次以后玩）。
+  tutorial: {
+    hintAt: [7, 15, 23],      // 每段开始后第几秒念第 1/2/3 句提示（孩子先做到了就不念）
+    autoAt: 36,               // 到这个时间还没做，世界自己慢慢完成，照样往下走
+    gazeDeg: 14,              // 视线和目标夹角小于这个度数 = 在看它
+    wakeGazeSec: 2.5,         // 看着 Mochi 累计这么久，它就醒
+    stillDegPerSec: 7,        // 转头角速度低于这个 = 安静
+    fireflyApproachSec: 8,    // 一直安静的话，萤火虫飞到面前要几秒
+    fireflyRest: [0.16, 0.82, -0.72], // 萤火虫最后停在孩子面前的位置
+    flowerDist: 0.42, flowerH: 0.3, flowerHeadFromTop: 0.28, // 花离脸 42 cm、整株高 30 cm、花朵在图里的高度
+    frostDist: 0.62, frostDown: 0.1, frostW: 0.46, frostHole: 0.36, // 冰窗离脸 62 cm、比眼睛低 10 cm、宽 46 cm、化开的洞
+    breathSec: 0.7,           // 孩子的热气飞到 Mochi 嘴里用多久
+  },
+
+  // 旁白：台词在 public/config/voice.json；录好的音频 assets/audio/vo_{键}.mp3，没有就用浏览器语音合成
+  voice: { volume: 1, ttsRate: 0.9, ttsPitch: 1.1 },
 
   // layout.json 读不到时的兜底（与 public/assets/layout.json 相同的默认摆放）
   layoutDefaults: {
@@ -282,6 +300,7 @@ export const CONFIG = {
     restBetweenBreathsSec: 0.8,
     huffDemoSec: 1.7,
     huffFlashLeadSec: 0.2,      // 光团亮一下之后 Mochi 才哈火
+    childBreathSec: 0.7,        // 哈气确认后先从孩子嘴前飞一团热气进 Mochi 嘴里，再喷火（让孩子看见“我的气 → Mochi 的火”）
     huffStepSec: 1.9,           // 一次确认哈气的整段动画
     endCelebrateSec: 3.5,       // （全部完成时还要加上星光落下 + 龙蛋孵化的时间）
   },
@@ -309,6 +328,7 @@ export const CONFIG = {
     keys: {
       Space: 'next', KeyP: 'pause', KeyE: 'end', KeyR: 'restart', KeyL: 'reloadLayout',
       KeyH: 'toggleHud', KeyC: 'sneeze', KeyB: 'percussion', KeyD: 'autoplay', KeyO: 'recenter',
+      KeyT: 'hint', KeyS: 'skipTutorial',
     },
   },
 

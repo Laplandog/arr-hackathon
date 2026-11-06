@@ -1,4 +1,4 @@
-// 状态机：INTRO → SLEEP → [ FLY → HUFF → SETTLE ] × rounds → END，另有全局 PAUSE。
+// 状态机：INTRO → TUTORIAL（新手引导，可关）→ SLEEP → [ FLY → HUFF → SETTLE ] × rounds → END，另有全局 PAUSE。
 // 只读 template.json（示意，非临床参数）。
 // 硬规则：没有失败、没有分数、没有 Miss；进度永远不倒退；火苗大小、飞行高度都是固定动画，与任何输入强度无关。
 import { CONFIG } from './config.js';
@@ -62,10 +62,12 @@ export class StateMachine {
   start() { this.restart(); }
 
   canNext() {
+    if (this.state === 'TUTORIAL') return !this.paused && !!this.tutorial?.canConfirm;
     const st = this.runner.step;
     return !this.paused && this.state !== 'END' && !!st && st.dur == null;
   }
   get stepName() {
+    if (this.state === 'TUTORIAL') return this.tutorial?.label || '';
     const st = this.runner.step;
     if (!st) return '';
     return typeof st.name === 'function' ? st.name() : st.name || '';
@@ -73,6 +75,15 @@ export class StateMachine {
 
   next() {
     if (this.paused) { this._log('暂停中，忽略“下一步”（按暂停键继续）'); return; }
+    if (this.state === 'TUTORIAL') { this.tutorial?.confirm(); return; } // 引导里 Space = 孩子做到了
+    this._nextMain();
+  }
+  /** 家长按 T：引导里让提示再进一级 */
+  hint() { if (this.state === 'TUTORIAL' && !this.paused) this.tutorial?.hint(); else this._log('提示键只在新手引导里用'); }
+  /** 家长按 S：跳过新手引导 */
+  skipTutorial() { if (this.state === 'TUTORIAL' && !this.paused) this.tutorial?.skip(); }
+
+  _nextMain() {
     const st = this.runner.step;
     if (this.state === 'END') { this._log('已结束；按“重新开始”回到 INTRO'); return; }
     if (!st || st.dur != null) {
@@ -94,12 +105,14 @@ export class StateMachine {
       this.mochi.rest();
       this.fx.band.setBright(false);
       this.fx.orb.snuggle(this.mochi.centerWorld().setY(this.s.groundY));
+      if (this.state === 'TUTORIAL') this.tutorial?.pause();
       this._log(`PAUSE（${this.state} · ${this.stepName}）：光团靠着 Mochi，音量 40%，计时冻结`);
     } else {
       this.paused = false;
       this.runner.frozen = false;
       this.audio.setMaster(1);
       if (this.state === 'INTRO' && !this.greeted) this.fx.orb.flyAway(); else this.fx.orb.toRest();
+      if (this.state === 'TUTORIAL') { this.tutorial?.resume(); this._log('继续：从引导的这一段重新开始'); return; }
       this._resumeVisuals();
       this._log(`继续：从「${this.stepName}」所在的小步骤重新开始`);
       this.runner.restartCurrent();
@@ -119,6 +132,7 @@ export class StateMachine {
     this.audio.setMaster(1); this.audio.stopAllSfx(); this.audio.bgmTo(CONFIG.audio.bgmVolume, 1);
     this.round = 1; this.huffInRound = 0; this.globalHuff = 0; this.breath = 0; this.huffQueued = false;
     this.greeted = false; this.early = false;
+    this.tutorial?.stop();
     this.fx.resetAll();
     this.fx.sky.reset(this.totalBreaths);
     this.mochi.reset();
@@ -128,6 +142,9 @@ export class StateMachine {
   }
 
   update(dt) {
+    this.clock = (this.clock || 0) + dt;
+    this.tutorial?.tick(dt); // 飞行中的热气等（正式练习的哈气也用）
+    if (this.state === 'TUTORIAL' && !this.paused) this.tutorial?.update(dt, this.clock);
     this.runner.update(dt);
     // 动画期间排队的哈气确认
     if (this.huffQueued && this.state === 'HUFF' && this.canNext()) { this.huffQueued = false; this.next(); }
@@ -176,7 +193,13 @@ export class StateMachine {
     this.runner.run([{
       name: '光团飞来打招呼', dur: d,
       enter: () => { this.fx.orb.greet(this.mochi.centerWorld()); this.greeted = true; },
-    }], () => this.enter('SLEEP'));
+    }], () => this.enter(this.template.tutorial && this.tutorial ? 'TUTORIAL' : 'SLEEP'));
+  }
+
+  // ───────────── TUTORIAL（新手引导「Mochi 醒来的第一天」，见 tutorial.js） ─────────────
+  enter_TUTORIAL() {
+    this.runner.cancel();
+    this.tutorial.start(() => this.enter('SLEEP'));
   }
 
   // ───────────── SLEEP（放松呼吸，不要求跟拍） ─────────────
@@ -274,11 +297,14 @@ export class StateMachine {
     const last = this.huffInRound >= this.template.huffs;
     this._log(`确认哈气 #${this.globalHuff}（本轮 ${this.huffInRound}/${this.template.huffs}）→ 区域 z${zone + 1}`);
     m.faceToward(target);
+    // 先从孩子嘴前飞一团热气进 Mochi 嘴里，Mochi 再喷火：孩子看得见“我的气 → Mochi 的火 → 雾散了”
+    const lead = this.tutorial ? T.childBreathSec : T.huffFlashLeadSec;
+    this.tutorial?.childBreath(m.mouthWorld(), lead);
     // 进度在按下时就记下：雾一定会融化，即使中途暂停（进度永远不倒退）
-    const meltDelay = T.huffFlashLeadSec + CONFIG.mochi.huff.backSec + CONFIG.flame.travelSec * 0.85;
+    const meltDelay = lead + CONFIG.mochi.huff.backSec + CONFIG.flame.travelSec * 0.85;
     fx.sched.after(meltDelay, () => fx.meltZone(zone));
     fx.orb.flash();
-    fx.sched.after(T.huffFlashLeadSec, () => {
+    fx.sched.after(lead, () => {
       m.huff(() => {
         this.audio.play('sfx_huff');
         const aim = target || m.mouthWorld().add({ x: 0.3, y: 0.15, z: -0.4 });
@@ -286,7 +312,7 @@ export class StateMachine {
       });
     });
     this.runner.run([{
-      name: '哈火融雾', kind: 'huff', dur: T.huffStepSec, restartAt: 1,
+      name: '哈火融雾', kind: 'huff', dur: T.huffStepSec + (lead - T.huffFlashLeadSec), restartAt: 1,
       enter: () => { m.setPose('stand'); m.setWaitMode(false); },
       exit: () => { if (last) m.happy(); },
     }, this._huffWait()]);
@@ -320,6 +346,7 @@ export class StateMachine {
   enter_END({ early = false } = {}) {
     const m = this.mochi, fx = this.fx;
     this.early = early;
+    this.tutorial?.stop();
     this.runner.cancel();
     this.audio.stopTag('step');
     fx.band.show(false);
