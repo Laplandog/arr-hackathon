@@ -29,7 +29,7 @@ One action, two experiences. For the parent, it is a prescribed care routine. Fo
 ## How a session flows
 
 ```mermaid
-flowchart LR
+flowchart TD
     A["Intro<br/>the parent's light flies in"] --> B["Onboarding<br/>Mochi's First Day"]
     B --> C["Relax<br/>Mochi snores"]
     C --> D["Deep breaths × 3<br/>fly, hold, glide<br/>a star lights up"]
