@@ -6,6 +6,8 @@ Three.js + WebXR 的“立体书”式 VR 场景，能在 Quest 3 浏览器里�
 
 **线上预览：https://laplandog.github.io/arr-hackathon/** （电脑浏览器直接看；Quest 浏览器打开同一个网址点 ENTER VR）
 
+**我们做了什么（英文展示页）：[SHOWCASE.md](SHOWCASE.md)**
+
 ## 美术：上传图片看效果
 
 1. 打开仓库 https://github.com/Laplandog/arr-hackathon ，进入对应文件夹，例如 `public/assets/bg/`
