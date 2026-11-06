@@ -16,9 +16,7 @@
     "relax_ok":   {"text": "萤火虫来啦！"},
 
     "inhale_1":    {"text": "Mochi 想飞到云上去，可它还不会飞……"},
-    "inhale_2":    {"text": "萤火虫好像能把 Mochi 托起来……"},
-    "inhale_3":    {"text": "深深吸一口气，把萤火虫请过来，帮 Mochi 飞起来！"},
-    "inhale_ok":   {"text": "Mochi 飞起来啦！"},
+    "inhale_ok":   {"text": "萤火虫来帮忙，Mochi 飞起来啦！"},
     "inhale_hold": {"text": "嘘——水滴要掉下来了……"},
     "inhale_down": {"text": "Mochi 要降落啦……"},
 
@@ -31,6 +29,10 @@
     "cough_3":    {"text": "咳一下，帮它把种子弄出来？"},
     "cough_ok":   {"text": "种子飞走啦！"},
 
-    "egg_1":      {"text": "龙蛋好冰呀……我们一起让它暖起来吧！"}
+    "egg_1":      {"text": "龙蛋好冰呀……"},
+    "egg_2":      {"text": "它也冻得直发抖……"},
+    "egg_3":      {"text": "像刚才那样，哈一口热气给它吧！"},
+    "egg_ok":     {"text": "龙蛋暖和一点啦！"},
+    "egg_go":     {"text": "我们一起让它越来越暖吧！"}
   }
 }

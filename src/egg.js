@@ -126,7 +126,7 @@ export class Egg {
     this.seq = null; this.beamSeq = null;
     this.warmT.set(0); this.crackT.set(0); this.glowT.set(E.glow.byStage[0]); this.beamT.set(0);
     this.innerT.set(0); this.flashT.set(0); this.fadeT.set(1);
-    this.wobT = 0; this.wobAge = 99; this.wobDeg = 0;
+    this.wobT = 0; this.wobAge = 99; this.wobDeg = 0; this.shiver = 0;
     this.body.rotation.set(0, 0, 0);
     if (this.m.cold) this.m.cold.visible = true;
     for (const k of ['top', 'bottom']) if (this.m[k]) this.m[k].visible = false;
@@ -220,6 +220,7 @@ export class Egg {
       this.wobAge += dt;
       const p = this.wobAge / W.sec;
       this.body.rotation.z = p < 1 ? this.wobDeg * DEG * Math.sin(p * TAU * 2) * (1 - p) : 0;
+      if (this.shiver) this.body.rotation.z += Math.sin(t * 47) * 2 * DEG * this.shiver; // 冷得发抖（新手引导“暖暖龙蛋”）
     }
     // 光：蛋后面的暖光（呼吸起伏）+ 变暖时一闪 + 孵化后壳里透出的光
     const G = E.glow;

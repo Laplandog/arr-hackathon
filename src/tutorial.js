@@ -213,6 +213,7 @@ export class Tutorial {
   }
   _clear() {
     for (const L of this.layout.layers.values()) if (L.kind === 'fog') L.scaleMul = 1;
+    this.fx.egg.shiver = 0;
     for (const m of this.props) m.parent?.remove(m);
     for (const mv of this.movers) mv.kill();
     this.props = []; this.movers = []; this.seqs = [];
@@ -301,26 +302,47 @@ export class Tutorial {
     };
   }
 
-  /** 你动我也动：Mochi 学孩子歪头、转头、抬头 */
+  /**
+   * 你动我也动：孩子做完一个动作（歪头 / 转头 / 抬头低头），Mochi 跟着清清楚楚地学一遍。
+   * “你做完 → 它再做”像轮流模仿，比同时跟着动更容易看出“它在学我”。学满 3 次就算发现了。
+   */
   _def_mirror() {
-    const m = this.mochi, h = this.head;
-    let base = null, armed = true, gestures = 0;
+    const m = this.mochi, h = this.head, T = CONFIG.tutorial;
+    let base = null, armed = true, pending = null, held = 0, echoes = 0, busy = 0;
+    const echo = (g) => {
+      echoes++; busy = T.echoSec + 0.3;
+      const side = Math.sign(g.v) || 1;
+      if (g.kind === 'roll') {         // 歪头：往孩子看到的同一边歪（像照镜子）
+        m.extra.lean = side * T.echoTiltDeg;
+      } else if (g.kind === 'yaw') {   // 转头：转向同一边、身子也偏过去一点
+        m.faceToward(_w.set(m.x.v - side, 0, 0)); m.extra.lean = side * T.echoTiltDeg * 0.5; m.extra.x = -side * 0.08;
+      } else if (side > 0) {           // 抬头：伸长脖子往上看
+        m.extra.y = 0.06; m.lookUp(T.echoSec * 0.6);
+      } else {                         // 低头 / 点头：往下一沉
+        m.extra.y = -0.05;
+      }
+      m.hop(CONFIG.mochi.hop.height * 0.3, 0.3);
+      this._after(T.echoSec, () => { Object.assign(m.extra, { lean: 0, x: 0, y: 0 }); m.faceToward(null); });
+      if (echoes >= 3) this._after(T.echoSec + 0.2, () => this._complete(true, `Mochi 学了孩子 ${echoes} 下`));
+    };
     return {
-      name: '你动我也动', lines: ['mirror_1', 'mirror_2', 'mirror_3'], hintAt: [10, 18, 26], autoAt: 36, confirm: true,
+      name: '你动我也动', lines: ['mirror_1', 'mirror_2', 'mirror_3'], hintAt: [10, 18, 26], autoAt: 40, confirm: true,
       enter: () => { m.setPose('stand'); m.setWaitMode(true); m.calm(); base = { yaw: h.yaw, pitch: h.pitch }; },
-      update: () => {
+      update: (dt) => {
         if (this.state.success) return;
+        busy -= dt;
         let yaw = h.yaw - base.yaw; if (yaw > 180) yaw -= 360; if (yaw < -180) yaw += 360;
         const yawR = clamp(yaw, -40, 40), pitchR = clamp(h.pitch - base.pitch, -30, 30), roll = clamp(h.roll, -30, 30);
-        // 像照镜子：孩子往左歪/往左转，Mochi 也往孩子看到的左边歪/挪
-        m.extra.lean = roll * 0.9 + yawR * 0.3;
-        m.extra.x = -yawR * 0.003;
-        m.extra.y = pitchR * 0.004;
-        if (yawR > 16) m.faceToward(_w.set(m.x.v - 1, 0, 0)); else if (yawR < -16) m.faceToward(_w.set(m.x.v + 1, 0, 0)); else m.faceToward(null);
-        const mag = Math.max(Math.abs(yawR) / 18, Math.abs(pitchR) / 12, Math.abs(roll) / 12);
-        if (armed && mag > 1) { armed = false; gestures++; m.hop(CONFIG.mochi.hop.height * 0.3, 0.3); }
-        if (mag < 0.45) armed = true;
-        if (gestures >= 3 && this.state.t > 3) this._complete(true, `孩子动了 ${gestures} 下`);
+        const cand = [{ kind: 'roll', v: roll, n: Math.abs(roll) / 12 }, { kind: 'yaw', v: yawR, n: Math.abs(yawR) / 18 }, { kind: 'pitch', v: pitchR, n: Math.abs(pitchR) / 12 }];
+        const top = cand.reduce((a, b) => (b.n > a.n ? b : a));
+        if (armed && top.n > 1) { armed = false; pending = top; held = 0; }
+        if (pending) {
+          if (top.kind === pending.kind && top.n > pending.n) pending = top; // 记下这一下最大的幅度
+          held += dt;
+          // 孩子回正了（或者保持了一会儿）→ Mochi 学一遍
+          if ((top.n < 0.45 || held > 0.9) && busy <= 0) { echo(pending); pending = null; }
+        }
+        if (top.n < 0.45) armed = true;
       },
       finish: (byChild) => {
         Object.assign(m.extra, { lean: 0, x: 0, y: 0 });
@@ -367,25 +389,27 @@ export class Tutorial {
   }
 
   /**
-   * 吸-停-呼：一群萤火虫在孩子面前飞，时不时往孩子脸前凑一凑。
-   * 孩子吸气（家长确认）→ 萤火虫被“请”到脸前，再一起飞到 Mochi 身下，把它托起来；
+   * 吸-停-呼（不需要孩子/家长操作，整段自己演完；孩子在后面的正式练习里跟着做）：
+   * 一群萤火虫从旁边飞过来 → 直接飞到 Mochi 身下把它托起来（吸）；
    * 停一下：一颗水滴从天上慢慢落到 Mochi 头上；呼气：萤火虫托着 Mochi 慢慢降落，水滴滑进窝里。
    */
   _def_inhale() {
     const m = this.mochi, T = CONFIG.tutorial, tp = this.template;
-    let flies = [], home = null, mode = 'idle', mt = 0, longing = 0, beckon = 0, drop = null;
-    const face = () => this.head.local(0.14, 0.06);
+    let flies = [], home = null, spawn = null, mode = 'idle', mt = 0, drop = null;
     const under = (f, out) => out.set(m.root.position.x + f.ring.x, m.root.position.y - m.S * 0.5 + f.ring.y, m.root.position.z + f.ring.z);
     return {
-      name: '吸一吸（吸-停-呼）', lines: ['inhale_1', 'inhale_2', 'inhale_3'], autoAt: 38, confirm: true,
+      name: '吸一吸（萤火虫托起 Mochi）', lines: [], autoAt: T.swarmArriveSec, confirm: false,
       enter: () => {
         m.wake(); this.fx.zzz.set(false); this.audio.loop('sfx_snore', false); m.faceToward(null); m.setWaitMode(true);
+        this._after(0.3, () => this._say('inhale_1'));
+        this._after(0.6, () => m.lookUp(1.2));
         home = this.head.local(T.swarmDist, T.swarmDown);
+        spawn = home.clone().add(new THREE.Vector3(-1.3, 0.6, -1.0));
         const [sx, sy, sz] = T.swarmSpread;
         flies = Array.from({ length: T.swarmCount }, (_, i) => {
           const f = new Firefly(this, this.tex.glow);
           f.off = new THREE.Vector3(rand(-sx, sx), rand(-sy, sy), rand(-sz, sz));
-          f.ph = rand(0, TAU); f.alpha = 0;
+          f.ph = rand(0, TAU); f.alpha = 0; f.delay = i * 0.12;
           const a = (i / T.swarmCount) * TAU;
           f.ring = new THREE.Vector3(Math.cos(a) * 0.24, rand(-0.02, 0.1), Math.sin(a) * 0.12 + 0.05);
           f.from = new THREE.Vector3(); f.mid = new THREE.Vector3();
@@ -394,19 +418,12 @@ export class Tutorial {
       },
       update: (dt, t) => {
         mt += dt;
-        // Mochi 只表现“想飞但够不着”：时不时抬头望天、蹦一下
-        if (mode === 'idle' && (longing -= dt) <= 0) { longing = 3.6; m.lookUp(1.1); this._after(0.4, () => m.hop(CONFIG.mochi.hop.height * 0.8, 0.5)); }
-        if (mode === 'idle') beckon = Math.max(0, Math.sin((this.state.t * TAU) / 5)) ** 2; // 每 5 秒往孩子脸前凑一凑
-        const fc = face();
         flies.forEach((f, i) => {
           const wob = _w.set(Math.sin(t * 1.7 + f.ph) * 0.05, Math.sin(t * 2.3 + f.ph * 1.3) * 0.035, Math.sin(t * 1.1 + f.ph) * 0.03);
-          if (mode === 'idle') {
-            f.alpha = Math.min(1, f.alpha + dt * 0.8); f.size = 1.4;
-            f.pos.copy(home).add(f.off).add(wob).lerp(fc, beckon * 0.35);
-          } else if (mode === 'pull') { // 被孩子的吸气“请”到脸前
-            const p = Math.min(1, mt / 0.6);
-            f.pos.lerpVectors(f.from, _v.copy(fc).add(f.off.clone().multiplyScalar(0.35)), ease.inOutSine(p));
-            f.size = 1.4 + 0.3 * p;
+          if (mode === 'idle') { // 一只接一只从旁边飞过来，聚在孩子面前
+            const p = ease.outCubic(clamp((mt - f.delay) / 1.8, 0, 1));
+            f.alpha = p; f.size = 1.4;
+            f.pos.copy(spawn).add(_v.copy(f.off).multiplyScalar(3)).lerp(_v.copy(home).add(f.off), p).add(wob);
           } else if (mode === 'carry') { // 飞到 Mochi 身下托住它
             const p = Math.min(1, mt / 1.0);
             under(f, _v);
@@ -432,20 +449,18 @@ export class Tutorial {
           drop.mesh.renderOrder = depthOrder(drop.mesh.position.z, 0.97);
         }
       },
-      finish: (byChild) => {
+      finish: () => {
         const B = this.getSettings().band, inhale = tp.inhaleSec, hold = tp.holdSec, exhale = tp.exhaleSec;
-        const pull = 0.6;
-        mode = 'pull'; mt = 0;
-        for (const f of flies) { f.from.copy(f.pos); f.alpha = 1; }
-        if (byChild) this._say('inhale_ok');
-        this._after(pull, () => {
-          mode = 'carry'; mt = 0;
-          for (const f of flies) {
-            f.from.copy(f.pos);
-            under(f, f.mid); f.mid.lerp(f.from, 0.5); f.mid.y += 0.35;
-          }
+        const lift = 0.5; // 萤火虫飞到 Mochi 身下的时间里，Mochi 稍后一点开始升
+        mode = 'carry'; mt = 0;
+        for (const f of flies) {
+          f.alpha = 1; f.from.copy(f.pos);
+          under(f, f.mid); f.mid.lerp(f.from, 0.5); f.mid.y += 0.35;
+        }
+        this._after(lift, () => {
           // Mochi 被萤火虫托着飞起来（= 正式练习里的“吸气上升”）
-          m.setWaitMode(false); m.setWings('flap'); m.flyY(B.center, inhale - pull, ease.inOutSine); m.setBelly(CONFIG.mochi.inhaleBelly, inhale - pull);
+          m.setWaitMode(false); m.setWings('flap'); m.flyY(B.center, inhale - lift, ease.inOutSine); m.setBelly(CONFIG.mochi.inhaleBelly, inhale - lift);
+          this._say('inhale_ok');
         });
         this._after(inhale, () => {
           m.setHover(true); m.setWings('hover'); m.setEyes('happy');
@@ -473,65 +488,28 @@ export class Tutorial {
   /** 哈气：Mochi 冻成冰蓝色、发抖、冒冷气 → 孩子哈气 → 热气飞进 Mochi 嘴里，颜色慢慢变回来、火苗变大 */
   _def_huff() {
     const m = this.mochi, T = CONFIG.tutorial;
-    let smoke = 0, marks = null, flakes = [], coldVis = new Tween(0), glow = null;
+    let smoke = 0, cold = null;
     return {
       name: '哈一哈', lines: ['huff_1', 'huff_2', 'huff_3'], autoAt: 38, confirm: true,
       enter: () => {
         m.setPose('stand'); m.faceToward(null); m.setWaitMode(false); m.calm(); this.fx.zzz.set(false);
         m.cold.go(1, 1.2); m.extra.shiver = 1;
         m.forcePose = 'cold'; // 美术交了 mochi_pose_cold（冷得缩成一团的表情）就用它，没有就用平常的站姿
-        coldVis.go(1, 1.2);
-        marks = [this._prop(quad(this.tex.shake)), this._prop(quad(this.tex.shake))];
-        flakes = Array.from({ length: 5 }, (_, i) => ({ mesh: this._prop(quad(this.tex.snow)), t: (i / 5) * 2.6, x: rand(-0.35, 0.35), ph: rand(0, TAU) }));
-        glow = this._prop(quad(this.tex.glow, { additive: true, color: 0xffa860 }));
-        glow.visible = false;
+        cold = new ColdFX(this, (o) => o.copy(m.root.position), m.S); cold.on();
       },
       update: (dt, t) => {
-        const cv = coldVis.update(dt), S = m.S, c = m.root.position;
-        // 发抖的符号：Mochi 两边各三道弯线，左右交替闪
-        marks.forEach((mk, i) => {
-          const side = i === 0 ? -1 : 1, on = 0.55 + 0.45 * Math.sign(Math.sin(t * TAU * 3 + i * Math.PI));
-          mk.position.set(c.x + side * S * 0.5 + Math.sin(t * 50 + i) * 0.006, c.y + S * 0.05, c.z + 0.06);
-          mk.scale.set(side * S * 0.26, S * 0.35, 1);
-          faceHead(mk, this.head);
-          mk.rotation.z = 0;
-          mk.material.opacity = cv * on;
-          mk.visible = cv > 0.01;
-          mk.renderOrder = depthOrder(c.z + 0.06, 0.9);
-        });
-        // 小雪花在 Mochi 身边飘下来
-        for (const f of flakes) {
-          f.t = (f.t + dt) % 2.6;
-          const p = f.t / 2.6;
-          f.mesh.position.set(c.x + f.x + Math.sin(t * 1.5 + f.ph) * 0.05, c.y + S * (0.7 - p * 1.0), c.z + 0.08);
-          const s = 0.045 * (0.7 + 0.3 * Math.sin(f.ph));
-          f.mesh.scale.set(s, s, 1);
-          faceHead(f.mesh, this.head, t * 0.8 + f.ph);
-          f.mesh.material.opacity = cv * Math.min(1, p / 0.15, (1 - p) / 0.2);
-          f.mesh.visible = cv > 0.01;
-          f.mesh.renderOrder = depthOrder(c.z + 0.08, 0.92);
-        }
+        cold.update(dt, t);
         // 嘴里时不时冒出一小缕冷气（小火苗快熄了）
         if (!this.state.success && (smoke -= dt) <= 0) {
           smoke = 2.6;
           const from = m.mouthWorld();
           this.movers.push(new Mover(this.world, this.tex.puff, { color: 0xcfe2f7, from, to: from.clone().add(new THREE.Vector3(0.05, 0.22, 0.02)), dur: 1.4, size: [0.03, 0.09], fade: [0.2, 0.5], opacity: 0.85, head: this.head }));
         }
-        // 变暖时身上一圈暖光
-        if (glow.visible) {
-          glow.position.set(c.x, c.y + S * 0.05, c.z + 0.04);
-          faceHead(glow, this.head);
-          glow.renderOrder = depthOrder(c.z + 0.04, 0.85);
-        }
       },
       finish: (byChild) => {
         const warm = () => {
-          m.cold.go(0, 2.4, ease.inOutSine); m.extra.shiver = 0; coldVis.go(0, 0.8); m.forcePose = null;
-          glow.visible = true;
-          this.seqs.push(new Seq([{ dur: 1.8, update: (p) => {
-            const k = Math.sin(Math.PI * p); const s = m.S * (0.9 + 0.5 * p);
-            glow.scale.set(s, s, 1); glow.material.opacity = 0.85 * k;
-          }, end: () => { glow.visible = false; } }]));
+          m.cold.go(0, 2.4, ease.inOutSine); m.extra.shiver = 0; m.forcePose = null;
+          cold.warm();
           m.huff(() => this.fx.flames.shoot(m.mouthWorld(), m.mouthWorld().add(new THREE.Vector3(0.32, 0.24, 0.12)), { demo: true }));
           this._after(0.9, () => m.happy({ spin: true }));
         };
@@ -577,17 +555,91 @@ export class Tutorial {
     };
   }
 
-  /** 收尾：Mochi 看看冰凉的龙蛋，再看看孩子 → 进入正式练习 */
+  /**
+   * 收尾“暖暖龙蛋”：龙蛋冻得发抖（发抖符号 + 小雪花），Mochi 看看蛋、再看看孩子。
+   * 孩子哈气（家长确认）→ 热气飞到蛋上 → 蛋从冰凉变成“微暖发光”（颜色变暖、亮一下、一道光）→ 进入正式练习。
+   */
   _def_egg() {
-    const m = this.mochi;
+    const m = this.mochi, e = this.fx.egg, T = CONFIG.tutorial;
+    let cold = null;
     return {
-      name: '龙蛋好冰', lines: [], autoAt: 6.5, confirm: false,
+      name: '暖暖龙蛋', lines: ['egg_1', 'egg_2', 'egg_3'], hintAt: [2.2, 10, 18], autoAt: 30, confirm: true,
       enter: () => {
-        m.setPose('stand'); m.calm(); m.faceToward(this.fx.egg.center());
-        this._after(0.9, () => { const e = this.fx.egg; if (!e.hatched) { e.wobAge = 0; e.wobDeg = 5; } });
-        this._after(2.0, () => { m.faceToward(null); this._say('egg_1'); });
+        m.setPose('stand'); m.calm(); this.fx.zzz.set(false); m.faceToward(e.center());
+        cold = new ColdFX(this, (o) => e.center(o), e.h, { flakes: 4 });
+        if (!e.hatched && e.stage === 0) { cold.on(); e.shiver = 1; }
+        this._after(1.6, () => m.faceToward(null)); // 看看蛋，再看看孩子
       },
-      finish: () => 0.3,
+      update: (dt, t) => cold.update(dt, t),
+      finish: (byChild) => {
+        const warm = () => {
+          cold.warm(); e.shiver = 0;
+          e.target = Math.max(e.target, 1); e.setStage(1); // 冰凉 → 微暖发光：颜色变暖、亮一下、一道光
+          m.happy({ spin: true });
+        };
+        if (byChild) {
+          this.childBreath(e.center(), T.breathSec);
+          this._after(T.breathSec, warm);
+          this._after(T.breathSec + 1.0, () => this._say('egg_ok'));
+          this._after(T.breathSec + 3.0, () => this._say('egg_go'));
+          return T.breathSec + 5.4;
+        }
+        // 孩子一直没做：Mochi 自己凑过去给蛋哈口热气（世界自己完成，不夸）
+        m.faceToward(e.center());
+        this._after(0.4, () => m.huff(() => this.movers.push(new Mover(this.world, this.tex.puff, { color: 0xfff1dc, from: m.mouthWorld(), to: e.center(), dur: 0.6, size: [0.04, 0.12], fade: [0.15, 0.2], head: this.head }))));
+        this._after(1.3, warm);
+        this._after(1.6, () => m.faceToward(null));
+        this._after(3.0, () => this._say('egg_go'));
+        return 5.4;
+      },
     };
+  }
+}
+
+const _c = new THREE.Vector3();
+/** 冷的表现（Mochi、龙蛋共用）：两边各三道发抖的弯线（左右交替闪）+ 身边飘小雪花；变暖时身上一圈暖光 */
+class ColdFX {
+  constructor(tut, center, size, { flakes = 5 } = {}) {
+    this.tut = tut; this.center = center; this.size = size;
+    this.vis = new Tween(0);
+    this.marks = [tut._prop(quad(tut.tex.shake)), tut._prop(quad(tut.tex.shake))];
+    this.flakes = Array.from({ length: flakes }, (_, i) => ({ mesh: tut._prop(quad(tut.tex.snow)), t: (i / flakes) * 2.6, x: rand(-0.5, 0.5), ph: rand(0, TAU) }));
+    this.glow = tut._prop(quad(tut.tex.glow, { additive: true, color: 0xffa860 }));
+    this.glow.visible = false; this.glowT = -1;
+  }
+  on(sec = 1.2) { this.vis.go(1, sec); }
+  warm() { this.vis.go(0, 0.8); this.glowT = 0; this.glow.visible = true; }
+  update(dt, t) {
+    const head = this.tut.head, cv = this.vis.update(dt), S = this.size, c = this.center(_c);
+    this.marks.forEach((mk, i) => {
+      const side = i === 0 ? -1 : 1, on = 0.55 + 0.45 * Math.sign(Math.sin(t * TAU * 3 + i * Math.PI));
+      mk.position.set(c.x + side * S * 0.5 + Math.sin(t * 50 + i) * 0.006, c.y + S * 0.05, c.z + 0.06);
+      mk.scale.set(side * S * 0.26, S * 0.35, 1);
+      faceHead(mk, head);
+      mk.material.opacity = cv * on;
+      mk.visible = cv > 0.01;
+      mk.renderOrder = depthOrder(c.z + 0.06, 0.9);
+    });
+    for (const f of this.flakes) {
+      f.t = (f.t + dt) % 2.6;
+      const p = f.t / 2.6;
+      f.mesh.position.set(c.x + f.x * S + Math.sin(t * 1.5 + f.ph) * 0.05, c.y + S * (0.7 - p * 1.0), c.z + 0.08);
+      const s = 0.045 * (0.7 + 0.3 * Math.sin(f.ph));
+      f.mesh.scale.set(s, s, 1);
+      faceHead(f.mesh, head, t * 0.8 + f.ph);
+      f.mesh.material.opacity = cv * Math.min(1, p / 0.15, (1 - p) / 0.2);
+      f.mesh.visible = cv > 0.01;
+      f.mesh.renderOrder = depthOrder(c.z + 0.08, 0.92);
+    }
+    if (this.glowT >= 0) {
+      this.glowT += dt;
+      const p = Math.min(1, this.glowT / 1.8), s = S * (0.9 + 0.5 * p);
+      this.glow.position.set(c.x, c.y + S * 0.05, c.z + 0.04);
+      this.glow.scale.set(s, s, 1);
+      this.glow.material.opacity = 0.85 * Math.sin(Math.PI * p);
+      faceHead(this.glow, head);
+      this.glow.renderOrder = depthOrder(c.z + 0.04, 0.85);
+      if (p >= 1) { this.glowT = -1; this.glow.visible = false; }
+    }
   }
 }
