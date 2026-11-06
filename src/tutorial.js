@@ -181,7 +181,7 @@ export class Tutorial {
   hint() {
     const s = this.cur;
     if (!this.active || this.paused || !s || s.success) return;
-    if (s.level < s.def.lines.length) { this._say(s.def.lines[s.level]); s.level++; s.t = Math.max(s.t, this._hintAt(s, s.level - 1)); } else this._complete(false, '家长提示到底');
+    if (s.level < s.def.lines.length) { this._hintLine(s, s.level); s.level++; s.t = Math.max(s.t, this._hintAt(s, s.level - 1)); } else this._complete(false, '家长提示到底');
   }
   /** 家长按 S：跳过引导 */
   skip() { if (!this.active) return; console.log('[引导] 跳过'); const cb = this.onDone; this.stop(); cb?.(); }
@@ -207,6 +207,11 @@ export class Tutorial {
   // ───── 内部 ─────
   get cur() { return this.state; }
   _say(id) { if (this.voice.has(id)) this.voice.say(id); }
+  /** 念第 k 句提示；这一段可以在念之前 / 之后配动作（def.onHint） */
+  _hintLine(s, k) {
+    const id = s.def.lines[k], say = () => this._say(id);
+    if (s.def.onHint) s.def.onHint(k, say); else say();
+  }
   _hintAt(s, k) { return (s.def.hintAt || CONFIG.tutorial.hintAt)[k] ?? 1e9; }
   _prop(mesh) { this.world.add(mesh); this.props.push(mesh); return mesh; }
   _resetMochi() {
@@ -262,7 +267,7 @@ export class Tutorial {
     d.update?.(dt, t);
     if (!s.success) {
       // 提示阶梯：到点就念下一句（孩子已经做到了就不会走到这里）
-      if (s.level < d.lines.length && s.t >= this._hintAt(s, s.level)) { this._say(d.lines[s.level]); s.level++; }
+      if (s.level < d.lines.length && s.t >= this._hintAt(s, s.level)) { this._hintLine(s, s.level); s.level++; }
       if (s.t >= (d.autoAt ?? CONFIG.tutorial.autoAt)) this._complete(false, '世界自己完成');
     } else if ((s.outT -= dt) <= 0 && !this.voice.speaking) { // 等旁白把这句说完再进下一段
       this._next();
@@ -329,8 +334,30 @@ export class Tutorial {
       this._after(T.echoSec, () => { Object.assign(m.extra, { lean: 0, x: 0, y: 0 }); m.faceToward(null); });
       if (echoes >= 3) this._after(T.echoSec + 0.2, () => this._complete(true, `Mochi 学了孩子 ${echoes} 下`));
     };
+    // 演示时每句提示都会播到，动作要和台词对上：
+    //   第 1 句“Hmm? Mochi seems to be copying you.”之前，Mochi 先左右摇摆（像在学孩子摇头）
+    //   第 3 句“Give a little nod…”说完，Mochi 点两下头 → 接“Mochi is so good at copying you!”
+    const sway = (sec) => {
+      busy = sec + 0.3;
+      this.seqs.push(new Seq([{ dur: sec, update: (p) => { const s = Math.sin(p * Math.PI * 4) * Math.sin(p * Math.PI); m.extra.lean = s * 15; m.extra.x = -s * 0.04; }, end: () => { m.extra.lean = 0; m.extra.x = 0; } }]));
+    };
+    const nod = (times, sec) => {
+      busy = sec + 0.3;
+      this.seqs.push(new Seq([{ dur: sec, update: (p) => { m.extra.y = -Math.abs(Math.sin(p * Math.PI * times)) * 0.055; }, end: () => { m.extra.y = 0; } }]));
+    };
     return {
       name: '你动我也动', lines: ['mirror_1', 'mirror_2', 'mirror_3'], hintAt: [10, 18, 26], autoAt: 40, confirm: true,
+      onHint: (k, say) => {
+        if (k === 0) { sway(T.swaySec); this._after(T.swaySec + 0.1, say); }
+        else if (k === 2) {
+          say();
+          this._after(this.voice.duration('mirror_3') + 0.2, () => {
+            if (this.state.success) return;
+            nod(2, T.nodSec);
+            this._after(T.nodSec + 0.2, () => this._complete(true, 'Mochi 学孩子点头'));
+          });
+        } else say();
+      },
       enter: () => { m.setPose('stand'); m.setWaitMode(true); m.calm(); base = { yaw: h.yaw, pitch: h.pitch }; },
       update: (dt) => {
         if (this.state.success) return;
@@ -522,9 +549,11 @@ export class Tutorial {
           this._after(0.9, () => m.happy({ spin: true }));
         };
         if (byChild) {
+          // 顺序：孩子的“哈——”（哈气声完整放完）→ 热气飞进 Mochi 嘴里、变暖 → “Mochi is warm now! Thank you!”
+          this.voice.stop(); // 孩子已经做到了，提示句不用再说完，让哈气声听得清楚
           this.childBreath(m.mouthWorld(), T.breathSec);
           this._after(T.breathSec, warm);
-          this._after(T.breathSec + 1.1, () => this._say('huff_ok'));
+          this._after(Math.max(T.breathSec + 1.1, CONFIG.audio.huffSoundSec + 0.25), () => this._say('huff_ok'));
         } else {
           this._after(1.2, warm);
         }
@@ -550,15 +579,18 @@ export class Tutorial {
         seed.renderOrder = depthOrder(p.z, 0.97);
       },
       finish: (byChild) => {
+        // 顺序：咳嗽声“咳、咳”（完整放完）+ 种子弹出去 → “The seed flew away!”
         m.forcePose = null; m.extra.shiver = 0;
+        if (byChild) this.voice.stop();
         m.sneeze(() => {
+          this.audio.play('sfx_cough');
           const from = seed?.position.clone() || m.mouthWorld();
           seed?.parent?.remove(seed);
           this.movers.push(new Mover(this.world, this.tex.seed, { from, to: from.clone().add(new THREE.Vector3(0.9, 0.9, -0.4)), dur: 1.6, size: [0.07, 0.05], fade: [0, 0.3], arc: 0.2, head: this.head, spin: 2 }));
-          if (byChild) this._after(0.5, () => this._say('cough_ok'));
+          if (byChild) this._after(this.audio.clipDur('sfx_cough') + 0.25, () => this._say('cough_ok'));
           this._after(0.6, () => m.happy());
         });
-        return 2.8;
+        return 3.0;
       },
     };
   }
@@ -586,14 +618,19 @@ export class Tutorial {
           m.happy({ spin: true });
         };
         if (byChild) {
+          // 顺序：孩子的“哈——”（哈气声完整放完）→ 热气飞到蛋上、蛋变暖 → “The egg is a little warmer!” → “Let's keep warming it up together!”
+          this.voice.stop();
           this.childBreath(e.center(), T.breathSec);
           this._after(T.breathSec, warm);
-          this._after(T.breathSec + 1.0, () => { this._say('egg_ok'); this.voice.queue('egg_go'); }); // 说完“暖和一点啦”再说“一起让它越来越暖”
+          this._after(Math.max(T.breathSec + 1.0, CONFIG.audio.huffSoundSec + 0.25), () => { this._say('egg_ok'); this.voice.queue('egg_go'); });
           return T.breathSec + 5.4;
         }
         // 孩子一直没做：Mochi 自己凑过去给蛋哈口热气（世界自己完成，不夸）
         m.faceToward(e.center());
-        this._after(0.4, () => m.huff(() => this.movers.push(new Mover(this.world, this.tex.puff, { color: 0xfff1dc, from: m.mouthWorld(), to: e.center(), dur: 0.6, size: [0.04, 0.12], fade: [0.15, 0.2], head: this.head }))));
+        this._after(0.4, () => m.huff(() => {
+          this.audio.play('sfx_huff', { vol: CONFIG.audio.sfxVolume * 0.6, dur: CONFIG.audio.huffSoundSec });
+          this.movers.push(new Mover(this.world, this.tex.puff, { color: 0xfff1dc, from: m.mouthWorld(), to: e.center(), dur: 0.6, size: [0.04, 0.12], fade: [0.15, 0.2], head: this.head }));
+        }));
         this._after(1.3, warm);
         this._after(1.6, () => m.faceToward(null));
         this._after(3.0, () => this._say('egg_go'));

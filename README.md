@@ -192,6 +192,9 @@ public/assets/
          音效（已有）：sfx_snore 打呼噜（开场 / 放松 / 睡觉时循环）、sfx_inhale_rise 深吸气、sfx_exhale_fall 呼气（孩子哈气时也放它的前 1.4 秒）、
                        sfx_drop 水滴、sfx_revive 复生（融雾恢复颜色、龙蛋变暖、孵化、Mochi 暖回来共用）
          音效（还空着，放进来就会响）：sfx_hold, sfx_huff, sfx_star, sfx_round_complete, sfx_sneeze, sfx_pat_drum, sfx_constellation
+         sfx_cough 咳嗽：现在是程序合成的两声轻咳（“咳、咳”，0.8 秒）；放进 sfx_cough.mp3 就自动换成录音
+         引导里的顺序：动作 / 音效先完整放完，再说夸奖的那句（Mochi 摇摆 → mirror_1；mirror_3 → Mochi 点头 → mirror_ok；
+                       哈气声 → huff_ok / egg_ok；咳嗽声 → cough_ok）
          每个音效自动剪掉前后空白、按响度拉平到一个比旁白和音乐都小的音量（src/config.js → audio.sfxTargetRms / sfxLevel）
          旁白 vo_en_{台词键}.m4a
 ```

@@ -175,11 +175,18 @@ export class AudioMgr {
 
   _buf(name, dur) {
     if (this.buffers[name]) return this.buffers[name];
-    if (!A.synthFallback) return null;
+    // 没有文件的音效：synthFor 里列出的（例如咳嗽）用代码合成，其他默认静默
+    if (!A.synthFallback && !(A.synthFor || []).includes(name)) return null;
     const key = `${name}|${dur ?? ''}`;
-    if (!this.synthCache.has(key)) this.synthCache.set(key, synth(this.ctx, name, dur));
+    if (!this.synthCache.has(key)) {
+      const b = synth(this.ctx, name, dur);
+      this.synthCache.set(key, b);
+      if (b && !this.clips[name]) this.clips[name] = measureClip(b, { target: A.sfxTargetRms, maxGain: 10 });
+    }
     return this.synthCache.get(key);
   }
+  /** 这个音效放出来有多长（秒，剪掉空白后）；还没加载 / 没有就给 fallback */
+  clipDur(name, fallback = 0.8) { name = A.alias?.[name] || name; this._buf(name, null); return this.clips[name]?.dur ?? fallback; }
 
   /**
    * 播放一次音效。dur：模板里的秒数 —— 文件比它长就在结束前 0.2 秒淡出；更短不处理。
@@ -286,6 +293,14 @@ function synth(ctx, name, dur) {
     case 'sfx_snore': return mk(4, (t, sec, lp) => 0.5 * lp(Math.random() * 2 - 1) * Math.pow(Math.max(0, S(P2 * t / 4)), 2) * 1.5);
     case 'sfx_round_complete': return mk(1.8, (t) => [0, 0.18, 0.36, 0.54].reduce((s, o, i) => s + (t > o ? Math.exp(-(t - o) * 2.5) * 0.16 * S(P2 * [523, 659, 784, 1047][i] * (t - o)) : 0), 0));
     case 'sfx_pat_drum': return mk(0.35, (t) => Math.exp(-t * 14) * 0.6 * S(P2 * (110 - 40 * t) * t));
+    case 'sfx_cough': return mk(0.8, (t, sec, lp) => { // 轻轻的两声“咳、咳”（代码合成的代替音，放 sfx_cough.mp3 就会用文件）
+      const burst = (t0, a) => {
+        const x = t - t0; if (x < 0 || x > 0.24) return 0;
+        const e = Math.min(1, x / 0.012) * Math.exp(-x * 13);
+        return a * e * (2.2 * lp(Math.random() * 2 - 1) + 0.3 * S(P2 * (330 - 140 * x) * x) + 0.15 * S(P2 * 2 * (330 - 140 * x) * x));
+      };
+      return burst(0, 0.5) + burst(0.32, 0.38);
+    });
     case 'sfx_egg_warm': return mk(1.6, (t, sec) => 0.12 * env(t, sec, 0.2, 0.8) * (S(P2 * 392 * t) + S(P2 * 494 * t) + 0.7 * S(P2 * 587 * t)));
     case 'sfx_constellation': return mk(1.6, (t) => [0, 0.12, 0.24, 0.36, 0.48].reduce((s, o, i) => s + (t > o ? Math.exp(-(t - o) * 3) * 0.13 * S(P2 * [784, 988, 1175, 1568, 1976][i] * (t - o)) : 0), 0));
     case 'sfx_hatch': return mk(1.2, (t, sec, lp) => 0.35 * lp(Math.random() * 2 - 1) * Math.exp(-t * 18) + Math.exp(-t * 2.5) * 0.15 * (S(P2 * 1047 * t) + S(P2 * 1319 * t) + S(P2 * 1568 * t)));

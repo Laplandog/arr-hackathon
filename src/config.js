@@ -31,6 +31,7 @@ export const CONFIG = {
     wakeGazeSec: 2.5,         // 看着 Mochi 累计这么久，它就醒
     stillDegPerSec: 7,        // 转头角速度低于这个 = 安静
     echoSec: 0.9, echoTiltDeg: 20, // 你动我也动：孩子做完一个动作后 Mochi 学一遍（保持多久、歪多少度）
+    swaySec: 1.6, nodSec: 1.1,     // 第 1 句提示前 Mochi 左右摇摆多久；“点点头”那句之后点两下头多久
     fireflyApproachSec: 8,    // 一直安静的话，萤火虫飞到面前要几秒
     fireflyRest: [0.16, 0.82, -0.72], // 萤火虫最后停在孩子面前的位置
     // 吸-停-呼：一群萤火虫在孩子面前（离脸 swarmDist 米、比眼睛低 swarmDown 米、散开范围 swarmSpread）；停一下时水滴从 Mochi 头顶上方 dropFall 米落下
@@ -329,7 +330,8 @@ export const CONFIG = {
     huffSoundSec: 1.4,          // 哈气声只放前 1.4 秒（短促的“哈——”）
     pauseMaster: 0.4,
     stepFadeOutSec: 0.2,        // 音效比模板秒数长时，在结束前 0.2 秒淡出
-    names: ['sfx_snore', 'sfx_inhale_rise', 'sfx_hold', 'sfx_exhale_fall', 'sfx_drop', 'sfx_revive',
+    synthFor: ['sfx_cough'],    // 这些音效没有文件时用代码合成（其他缺了就静默）
+    names: ['sfx_snore', 'sfx_inhale_rise', 'sfx_hold', 'sfx_exhale_fall', 'sfx_drop', 'sfx_revive', 'sfx_cough',
       'sfx_star', 'sfx_round_complete', 'sfx_sneeze', 'sfx_pat_drum', 'sfx_constellation'],
     synthFallback: false,        // true = 缺音频时用 Web Audio 合成简单占位音（默认按任务书静默跳过）
   },
