@@ -100,6 +100,8 @@ export class Mochi {
     // 新手引导用的叠加动作：学孩子歪头/转头/抬头（lean 度、x/y 米），冷得发抖（shiver 0–1）
     this.extra = { lean: 0, x: 0, y: 0, shiver: 0 };
     this._extra = { lean: 0, x: 0, y: 0, shiver: 0 };
+    this.cold = new Tween(0);   // 冷：0 = 正常颜色，1 = 冰蓝色渐变
+    this.forcePose = null;      // 强制用某张姿势图（例如 'dizzy'）
     this.applyLayout(settings);
     this.reset();
   }
@@ -160,6 +162,7 @@ export class Mochi {
   _spriteTarget() {
     const has = (n) => !!this.sprites[n];
     if (this.standW.to < 0.5) return this.resting && has('rest') ? 'rest' : 'sleep';
+    if (this.forcePose && has(this.forcePose) && !this.sneezing) return this.forcePose; // 例如卡住时的 dizzy（难受的表情）
     if (this.sneezing && has('sneeze')) return 'sneeze';
     if (this.mouth === 'open' && has('huff')) return 'huff';
     if ((this.eyes === 'happy' || this.mouth === 'smile') && has('happy')) return 'happy';
@@ -263,6 +266,7 @@ export class Mochi {
     this.setWings('fold', 0); this.eyes = 'open'; this.mouth = 'closed'; this.waitMode = false; this.flying = false;
     this.resting = false; this.sneezing = false;
     if (this.extra) { Object.assign(this.extra, { lean: 0, x: 0, y: 0, shiver: 0 }); Object.assign(this._extra, this.extra); }
+    this.cold?.set(0); this.forcePose = null;
     if (this.mode === 'sprite') { this.spriteCur = 'sleep'; this.spritePrev = null; this.spriteBlend = 1; }
   }
   setPose(p, dur = C.poseFadeSec) { this.standW.go(p === 'stand' ? 1 : 0, dur, ease.linear); }
@@ -420,6 +424,13 @@ export class Mochi {
     for (const tw of [this.x, this.y, this.z, this.belly, this.head, this.hopY, this.yaw, this.face, this.standW,
       this.blushT, this.hoverAmt, this.spinT, this.wingBlend]) tw.update(dt);
 
+    // 冷色调（冰蓝渐变）
+    const cold = this.cold.update(dt);
+    if (cold !== this._coldShown) {
+      this._coldShown = cold;
+      for (const s of Object.values(this.sprites || {})) if (s.mat.userData.u) s.mat.userData.u.uCold.value = cold;
+      for (const p of Object.values(this.parts || {})) if (p.mat?.userData?.u) p.mat.userData.u.uCold.value = cold;
+    }
     // 叠加动作平滑跟随（学孩子的头 / 发抖）
     const ex = this._extra, k = Math.min(1, dt * 8);
     for (const key of ['lean', 'x', 'y', 'shiver']) ex[key] += (this.extra[key] - ex[key]) * k;

@@ -32,8 +32,8 @@ export const CONFIG = {
     stillDegPerSec: 7,        // 转头角速度低于这个 = 安静
     fireflyApproachSec: 8,    // 一直安静的话，萤火虫飞到面前要几秒
     fireflyRest: [0.16, 0.82, -0.72], // 萤火虫最后停在孩子面前的位置
-    flowerDist: 0.42, flowerH: 0.3, flowerHeadFromTop: 0.28, // 花离脸 42 cm、整株高 30 cm、花朵在图里的高度
-    frostDist: 0.62, frostDown: 0.1, frostW: 0.46, frostHole: 0.36, // 冰窗离脸 62 cm、比眼睛低 10 cm、宽 46 cm、化开的洞
+    // 吸-停-呼：一群萤火虫在孩子面前（离脸 swarmDist 米、比眼睛低 swarmDown 米、散开范围 swarmSpread）；停一下时水滴从 Mochi 头顶上方 dropFall 米落下
+    swarmCount: 6, swarmDist: 0.55, swarmDown: 0.12, swarmSpread: [0.2, 0.1, 0.08], dropFall: 1.3,
     breathSec: 0.7,           // 孩子的热气飞到 Mochi 嘴里用多久
   },
 
@@ -125,6 +125,7 @@ export const CONFIG = {
       files: {
         idle: 'mochi_pose_idle', sleep: 'mochi_pose_sleep', rest: 'mochi_pose_rest', happy: 'mochi_pose_happy',
         huff: 'mochi_pose_huff', sneeze: 'mochi_pose_sneeze', dizzy: 'mochi_pose_dizzy',
+        cold: 'mochi_pose_cold', // 可选：冷得发抖的表情（新手引导“哈一哈”用；没有就用 idle + 冰蓝色）
       },
       faceFogMode: 'flip',   // 哈气时纸片翻面朝向雾
       fadeSec: 0.3, exprFadeSec: 0.15, quickFadeSec: 0.1, // 站↔睡 / 站姿换表情 / 哈气、喷嚏这种瞬间表情

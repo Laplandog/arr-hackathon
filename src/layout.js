@@ -18,6 +18,12 @@ const FRAG = /* glsl */ `
   vec4 synthGray = vec4( vec3( lumA ) * uTint, texA.a );
   vec4 grayC = mix( synthGray, texB, uHasB );
   vec4 sampledDiffuseColor = mix( texA, grayC, uGray );
+  // 冷：整张图换成冰蓝色渐变（上浅下深），保留明暗细节（Mochi 冷得发抖时用）
+  if ( uCold > 0.001 ) {
+    float lumC = dot( sampledDiffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );
+    vec3 gradC = mix( vec3( 0.36, 0.56, 0.96 ), vec3( 0.74, 0.90, 1.0 ), smoothstep( 0.15, 0.85, vMapUv.y ) );
+    sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb, gradC * ( 0.5 + 0.62 * lumC ), uCold );
+  }
   sampledDiffuseColor.rgb *= uBright;
   sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb, uHazeColor, uHaze );
   diffuseColor *= sampledDiffuseColor;
@@ -43,13 +49,13 @@ export function makeLayerMaterial(mapA, mapB = null, { gray = 0, side = THREE.Fr
   const u = {
     uGray: { value: gray }, uMapB: { value: mapB || mapA }, uHasB: { value: mapB ? 1 : 0 },
     uTint: { value: TINT }, uBright: sharedBright,
-    uHaze: { value: 0 }, uHazeColor: sharedHaze,
+    uHaze: { value: 0 }, uHazeColor: sharedHaze, uCold: { value: 0 },
   };
   mat.userData.u = u;
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, u);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uGray;\nuniform sampler2D uMapB;\nuniform float uHasB;\nuniform vec3 uTint;\nuniform float uBright;\nuniform float uHaze;\nuniform vec3 uHazeColor;')
+      .replace('#include <common>', '#include <common>\nuniform float uGray;\nuniform sampler2D uMapB;\nuniform float uHasB;\nuniform vec3 uTint;\nuniform float uBright;\nuniform float uHaze;\nuniform vec3 uHazeColor;\nuniform float uCold;')
       .replace('#include <map_fragment>', FRAG);
   };
   mat.customProgramCacheKey = () => 'mochiLayer';

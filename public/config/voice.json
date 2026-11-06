@@ -15,15 +15,15 @@
     "relax_3":    {"text": "陪 Mochi 安安静静待一会儿吧。"},
     "relax_ok":   {"text": "萤火虫来啦！"},
 
-    "smell_1":    {"text": "Mochi 想飞到云上去，可它还不会飞……"},
-    "smell_2":    {"text": "花好香呀……闻一闻，说不定有魔法？"},
-    "smell_3":    {"text": "深深吸一口花香，Mochi 就会学你飞起来！"},
-    "smell_ok":   {"text": "Mochi 飞起来啦！"},
-    "smell_hold": {"text": "嘘——露珠要掉了……"},
-    "smell_down": {"text": "Mochi 要降落啦……"},
+    "inhale_1":    {"text": "Mochi 想飞到云上去，可它还不会飞……"},
+    "inhale_2":    {"text": "萤火虫好像能把 Mochi 托起来……"},
+    "inhale_3":    {"text": "深深吸一口气，把萤火虫请过来，帮 Mochi 飞起来！"},
+    "inhale_ok":   {"text": "Mochi 飞起来啦！"},
+    "inhale_hold": {"text": "嘘——水滴要掉下来了……"},
+    "inhale_down": {"text": "Mochi 要降落啦……"},
 
     "huff_1":     {"text": "Mochi 好冷呀……"},
-    "huff_2":     {"text": "它的小火苗快熄了……"},
+    "huff_2":     {"text": "它冻得直发抖，小火苗也快熄了……"},
     "huff_3":     {"text": "哈一口热气，帮它暖暖吧！"},
     "huff_ok":    {"text": "Mochi 暖和啦！谢谢你！"},
 
