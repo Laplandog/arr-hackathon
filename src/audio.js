@@ -193,6 +193,8 @@ export class AudioMgr {
    * tag：暂停时可以按 tag 停掉（例如 'step' = 当前这口呼吸的音效）。
    */
   play(name, { vol = A.sfxVolume, dur = null, tag = null } = {}) {
+    // 音量先看原名（例如哈气 sfx_huff 单独调），再看实际用的文件（sfx_exhale_fall）
+    const level = A.sfxLevel?.[name] ?? A.sfxLevel?.[A.alias?.[name]] ?? 1;
     name = A.alias?.[name] || name; // 例如融雾 / 龙蛋变暖 / 孵化都用“复生”
     const buf = this._buf(name, dur);
     if (!buf || !this.unlocked) return null;
@@ -200,7 +202,7 @@ export class AudioMgr {
     const a = new THREE.Audio(this.listener);
     a.setBuffer(buf);
     a.offset = clip.start; a.duration = clip.dur;
-    const g0 = vol * (A.sfxLevel?.[name] ?? 1) * clip.gain;
+    const g0 = vol * level * clip.gain;
     a.gain.gain.value = g0;
     a.onEnded = () => {
       THREE.Audio.prototype.onEnded.call(a);

@@ -190,9 +190,10 @@ public/assets/
          被别的曲子打断后再回来，从刚才的位置接着放。换曲子：同名覆盖即可（越长越不容易听出重复）。
          切换和循环都用等功率交叉淡化（约 4 秒，新的渐强、旧的渐弱，中间不会凹下去）；旁白压低音乐只动总音量，不打断淡入淡出。
          音效（已有）：sfx_snore 打呼噜（开场 / 放松 / 睡觉时循环）、sfx_inhale_rise 深吸气、sfx_exhale_fall 呼气（孩子哈气时也放它的前 1.4 秒）、
-                       sfx_drop 水滴、sfx_revive 复生（融雾恢复颜色、龙蛋变暖、孵化、Mochi 暖回来共用）
-         音效（还空着，放进来就会响）：sfx_hold, sfx_huff, sfx_star, sfx_round_complete, sfx_sneeze, sfx_pat_drum, sfx_constellation
-         sfx_cough 咳嗽：现在是程序合成的两声轻咳（“咳、咳”，0.8 秒）；放进 sfx_cough.mp3 就自动换成录音
+                       sfx_drop 水滴、sfx_revive 复生（融雾恢复颜色、龙蛋变暖、孵化、Mochi 暖回来共用）、
+                       sfx_cough 咳嗽（录音的前 1 秒：两声“咳、咳”；文件万一加载失败就用合成的轻咳顶上）
+         哈气声（sfx_huff → 呼气声的前 1.4 秒）音量单独调：sfxLevel.sfx_huff（比练习里的呼气声小）
+         音效（还空着，放进来就会响）：sfx_hold, sfx_star, sfx_round_complete, sfx_sneeze, sfx_pat_drum, sfx_constellation
          引导里的顺序：动作 / 音效先完整放完，再说夸奖的那句（Mochi 摇摆 → mirror_1；mirror_3 → Mochi 点头 → mirror_ok；
                        哈气声 → huff_ok / egg_ok；咳嗽声 → cough_ok）
          每个音效自动剪掉前后空白、按响度拉平到一个比旁白和音乐都小的音量（src/config.js → audio.sfxTargetRms / sfxLevel）

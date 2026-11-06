@@ -324,13 +324,14 @@ export const CONFIG = {
     bgmTargetRms: 0.12,         // 各首按实测响度拉到差不多大
     // 音效：每个文件自动剪掉前后空白、按响度拉平到 sfxTargetRms（比旁白、背景音乐都小，不会太大声）；sfxLevel 单独再调
     sfxVolume: 0.8, sfxTargetRms: 0.07,
-    sfxLevel: { sfx_snore: 0.6, sfx_drop: 1.1, sfx_revive: 0.9, sfx_exhale_fall: 1.9 }, // 呼气 / 哈气声大一点
+    // 呼气声大一点；孩子 / Mochi 的哈气（用呼气声的前 1.4 秒）单独调，比呼气小一些
+    sfxLevel: { sfx_snore: 0.6, sfx_drop: 1.1, sfx_revive: 0.9, sfx_exhale_fall: 1.9, sfx_huff: 1.2 },
     // 同一个音效用在几个地方：融雾恢复颜色、龙蛋变暖、孵化、Mochi 暖回来都用“复生”；孩子哈气用呼气声的前一段
     alias: { sfx_melt_chime: 'sfx_revive', sfx_egg_warm: 'sfx_revive', sfx_hatch: 'sfx_revive', sfx_huff: 'sfx_exhale_fall' },
     huffSoundSec: 1.4,          // 哈气声只放前 1.4 秒（短促的“哈——”）
     pauseMaster: 0.4,
     stepFadeOutSec: 0.2,        // 音效比模板秒数长时，在结束前 0.2 秒淡出
-    synthFor: ['sfx_cough'],    // 这些音效没有文件时用代码合成（其他缺了就静默）
+    synthFor: ['sfx_cough'],    // 这些音效万一文件加载失败就用代码合成（其他缺了就静默）；咳嗽现在有录音 sfx_cough.mp3（原录音的前 1 秒，两声“咳、咳”）
     names: ['sfx_snore', 'sfx_inhale_rise', 'sfx_hold', 'sfx_exhale_fall', 'sfx_drop', 'sfx_revive', 'sfx_cough',
       'sfx_star', 'sfx_round_complete', 'sfx_sneeze', 'sfx_pat_drum', 'sfx_constellation'],
     synthFallback: false,        // true = 缺音频时用 Web Audio 合成简单占位音（默认按任务书静默跳过）
