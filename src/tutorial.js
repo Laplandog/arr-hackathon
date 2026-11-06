@@ -65,14 +65,17 @@ export const tutGen = {
     g.fillStyle = 'rgba(255,255,255,0.95)';
     g.beginPath(); g.ellipse(cx - r * 0.38, cy - r * 0.15, r * 0.16, r * 0.3, -0.35, 0, TAU); g.fill();
   }),
-  /** 发抖的符号：三道弯弯的短线 ))) */
+  /** 发抖的符号：三道竖着排的波浪线 ~（像漫画里冷得打哆嗦） */
   shake: () => canvasTexture(96, 128, (g, w, h) => {
-    g.lineCap = 'round';
-    for (const [k, r] of [[0, 26], [1, 42], [2, 58]]) {
-      const a0 = -0.55 + k * 0.06, a1 = 0.55 - k * 0.06;
-      for (const [col, lw] of [['rgba(255,255,255,0.95)', 9], ['rgba(110,160,225,1)', 5]]) {
-        g.strokeStyle = col; g.lineWidth = lw;
-        g.beginPath(); g.arc(4, h / 2, r, a0, a1); g.stroke();
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    const rows = [[h * 0.24, 0.8], [h * 0.5, 1.0], [h * 0.76, 0.8]]; // 中间那道长一点
+    for (const [col, lw] of [['rgba(255,255,255,0.95)', 10], ['rgba(110,160,225,1)', 5]]) {
+      g.strokeStyle = col; g.lineWidth = lw;
+      for (const [y, len] of rows) {
+        const x0 = w * (0.5 - 0.38 * len), x1 = w * (0.5 + 0.38 * len);
+        g.beginPath();
+        for (let x = x0; x <= x1 + 0.1; x += 2) g.lineTo(x, y + Math.sin(((x - x0) / (x1 - x0)) * Math.PI * 2.5) * 7);
+        g.stroke();
       }
     }
   }),
@@ -195,6 +198,7 @@ export class Tutorial {
   /** 孩子嘴前飞出一团热气到 to（正式练习的哈气也用：让孩子看见“我的气 → Mochi 的火”） */
   childBreath(to, dur = CONFIG.tutorial.breathSec, via = null) {
     const from = this.head.local(0.14, 0.13);
+    this.audio.play('sfx_huff', { dur: CONFIG.audio.huffSoundSec }); // 孩子的“哈——”
     this.movers.push(new Mover(this.world, this.tex.puff, {
       color: 0xfff1dc, from, via, to, dur, size: [0.05, 0.16], fade: [0.15, 0.2], arc: 0.06, opacity: 0.95, head: this.head, spin: 1.2,
     }));
@@ -229,7 +233,7 @@ export class Tutorial {
     this._enter(this.i);
   }
   _enter(i) {
-    this.voice.stop();
+    // 不打断上一段的最后一句（例如“Mochi is so good at copying you!”）：_next 已经等它说完了
     this._clear();
     this._resetMochi();
     const def = this[`_def_${this.list[i]}`]();
@@ -260,7 +264,7 @@ export class Tutorial {
       // 提示阶梯：到点就念下一句（孩子已经做到了就不会走到这里）
       if (s.level < d.lines.length && s.t >= this._hintAt(s, s.level)) { this._say(d.lines[s.level]); s.level++; }
       if (s.t >= (d.autoAt ?? CONFIG.tutorial.autoAt)) this._complete(false, '世界自己完成');
-    } else if ((s.outT -= dt) <= 0) {
+    } else if ((s.outT -= dt) <= 0 && !this.voice.speaking) { // 等旁白把这句说完再进下一段
       this._next();
     }
   }
@@ -398,7 +402,8 @@ export class Tutorial {
     let flies = [], home = null, spawn = null, mode = 'idle', mt = 0, drop = null;
     const under = (f, out) => out.set(m.root.position.x + f.ring.x, m.root.position.y - m.S * 0.5 + f.ring.y, m.root.position.z + f.ring.z);
     return {
-      name: '吸一吸（萤火虫托起 Mochi）', lines: [], autoAt: T.swarmArriveSec, confirm: false,
+      // 等开场这句（录音约 7 秒）说完、萤火虫也到齐了，再托起 Mochi
+      name: '吸一吸（萤火虫托起 Mochi）', lines: [], autoAt: Math.max(T.swarmArriveSec, 0.3 + this.voice.duration('inhale_1') + 0.4), confirm: false,
       enter: () => {
         m.wake(); this.fx.zzz.set(false); this.audio.loop('sfx_snore', false); m.faceToward(null); m.setWaitMode(true);
         this.audio.bgmPlay('fly'); // 萤火虫托起 Mochi：换成飞行的曲子
@@ -436,23 +441,28 @@ export class Tutorial {
           }
           f.draw(this.head, 0.75 + 0.25 * Math.sin(t * 3 + i));
         });
-        // 水滴：落到 Mochi 头上以后跟着它
+        // 水滴：慢慢落下来，碰到 Mochi 头顶就溅开、消失
         if (drop?.on) {
-          const ht = m.headTopWorld();
-          if (drop.falling) {
-            const p = Math.min(1, drop.t / drop.dur); drop.t += dt;
-            drop.mesh.position.lerpVectors(drop.from, ht, ease.inOutSine(p));
-            drop.mesh.position.x += Math.sin(p * Math.PI * 3) * 0.04 * (1 - p);
-            if (p >= 1) { drop.falling = false; this.audio.play('sfx_drop'); this.fx.sparks.burst(ht, 10, { speed: 0.25, up: 0.1, life: [0.4, 0.8], size: [0.012, 0.024], colors: ['#dff2ff', '#ffffff', '#a8d4ff'], spread: 0.04, grav: 0 }); }
-          } else drop.mesh.position.copy(ht).add(_v.set(0, 0.06, 0.02));
+          const touch = m.headTopWorld().add(_v.set(0, 0.07, 0.02)); // 水滴下沿碰到头顶时，水滴中心的位置
+          const p = Math.min(1, drop.t / drop.dur); drop.t += dt;
+          drop.mesh.position.lerpVectors(drop.from, touch, ease.inOutSine(p));
+          drop.mesh.position.x += Math.sin(p * Math.PI * 3) * 0.04 * (1 - p);
           drop.mesh.scale.set(0.1, 0.15, 1);
           faceHead(drop.mesh, this.head);
           drop.mesh.renderOrder = depthOrder(drop.mesh.position.z, 0.97);
+          if (p >= 1) {
+            drop.on = false; drop.mesh.parent?.remove(drop.mesh);
+            this.audio.play('sfx_drop');
+            this.fx.sparks.burst(m.headTopWorld(), 14, { speed: 0.3, up: 0.14, life: [0.35, 0.7], size: [0.012, 0.026], colors: ['#dff2ff', '#ffffff', '#a8d4ff'], spread: 0.03, grav: -0.3 });
+          }
         }
       },
       finish: () => {
-        const B = this.getSettings().band, inhale = tp.inhaleSec, hold = tp.holdSec, exhale = tp.exhaleSec;
-        const lift = 0.5; // 萤火虫飞到 Mochi 身下的时间里，Mochi 稍后一点开始升
+        // 这一段是演示（不用孩子操作），节奏跟着旁白走：每个阶段至少等这句录音说完（正式练习里才按模板的秒数）
+        const B = this.getSettings().band, V = this.voice, lift = 0.5; // 萤火虫飞到 Mochi 身下的时间里，Mochi 稍后一点开始升
+        const inhale = Math.max(tp.inhaleSec, lift + V.duration('inhale_ok') + 0.2);
+        const hold = Math.max(tp.holdSec, V.duration('inhale_hold') + 0.2);
+        const exhale = Math.max(tp.exhaleSec, V.duration('inhale_down') + 0.3);
         mode = 'carry'; mt = 0;
         for (const f of flies) {
           f.alpha = 1; f.from.copy(f.pos);
@@ -475,14 +485,7 @@ export class Tutorial {
           this.audio.play('sfx_exhale_fall', { dur: exhale });
           this._say('inhale_down');
         });
-        this._after(inhale + hold + exhale, () => {
-          m.setWings('fold'); mode = 'scatter';
-          // 水滴从 Mochi 头上滑进窝里（龙蛋旁边）
-          if (drop) {
-            drop.on = false; drop.mesh.parent?.remove(drop.mesh);
-            this.movers.push(new Mover(this.world, this.tex.drop, { from: drop.mesh.position.clone(), to: this.fx.egg.center().clone().add(new THREE.Vector3(-0.12, -0.02, 0.06)), dur: 0.9, size: [0.1, 0.06], aspect: 1.5, fade: [0, 0.25], arc: 0.12, head: this.head, onArrive: () => this.audio.play('sfx_drop', { vol: CONFIG.audio.sfxVolume * 0.6 }) }));
-          }
-        });
+        this._after(inhale + hold + exhale, () => { m.setWings('fold'); mode = 'scatter'; });
         return inhale + hold + exhale + 1.4;
       },
     };
@@ -585,8 +588,7 @@ export class Tutorial {
         if (byChild) {
           this.childBreath(e.center(), T.breathSec);
           this._after(T.breathSec, warm);
-          this._after(T.breathSec + 1.0, () => this._say('egg_ok'));
-          this._after(T.breathSec + 3.0, () => this._say('egg_go'));
+          this._after(T.breathSec + 1.0, () => { this._say('egg_ok'); this.voice.queue('egg_go'); }); // 说完“暖和一点啦”再说“一起让它越来越暖”
           return T.breathSec + 5.4;
         }
         // 孩子一直没做：Mochi 自己凑过去给蛋哈口热气（世界自己完成，不夸）

@@ -318,17 +318,18 @@ export const CONFIG = {
     // 背景音乐按阶段切换：开场/引导前半 intro（瞌睡）· 萤火虫托起和飞行 fly · 其余练习 main（绘本摇篮曲）· 结尾放晴 end
     bgmTracks: { intro: 'bgm_intro', main: 'bgm_main', fly: 'bgm_fly', end: 'bgm_end' },
     bgmVolume: 0.55, bgmEndVolume: 0.3,
-    bgmFadeSec: 2.5,            // 换曲子时交叉淡入淡出几秒
-    bgmLoopXfSec: 3,            // 一首放到尾巴之前，交叉淡入接回开头用几秒
+    bgmFadeSec: 4,              // 换曲子时等功率交叉淡化几秒（新的渐强、旧的渐弱）
+    bgmLoopXfSec: 4,            // 一首放到尾巴之前，交叉淡入接回开头用几秒（最多是曲长的 30%）
     bgmTargetRms: 0.12,         // 各首按实测响度拉到差不多大
     // 音效：每个文件自动剪掉前后空白、按响度拉平到 sfxTargetRms（比旁白、背景音乐都小，不会太大声）；sfxLevel 单独再调
     sfxVolume: 0.8, sfxTargetRms: 0.07,
-    sfxLevel: { sfx_snore: 0.6, sfx_drop: 1.1, sfx_revive: 0.9 },
-    // 同一个音效用在几个地方：融雾恢复颜色、龙蛋变暖、孵化、Mochi 暖回来都用“复生”
-    alias: { sfx_melt_chime: 'sfx_revive', sfx_egg_warm: 'sfx_revive', sfx_hatch: 'sfx_revive' },
+    sfxLevel: { sfx_snore: 0.6, sfx_drop: 1.1, sfx_revive: 0.9, sfx_exhale_fall: 1.9 }, // 呼气 / 哈气声大一点
+    // 同一个音效用在几个地方：融雾恢复颜色、龙蛋变暖、孵化、Mochi 暖回来都用“复生”；孩子哈气用呼气声的前一段
+    alias: { sfx_melt_chime: 'sfx_revive', sfx_egg_warm: 'sfx_revive', sfx_hatch: 'sfx_revive', sfx_huff: 'sfx_exhale_fall' },
+    huffSoundSec: 1.4,          // 哈气声只放前 1.4 秒（短促的“哈——”）
     pauseMaster: 0.4,
     stepFadeOutSec: 0.2,        // 音效比模板秒数长时，在结束前 0.2 秒淡出
-    names: ['sfx_snore', 'sfx_inhale_rise', 'sfx_hold', 'sfx_exhale_fall', 'sfx_huff', 'sfx_drop', 'sfx_revive',
+    names: ['sfx_snore', 'sfx_inhale_rise', 'sfx_hold', 'sfx_exhale_fall', 'sfx_drop', 'sfx_revive',
       'sfx_star', 'sfx_round_complete', 'sfx_sneeze', 'sfx_pat_drum', 'sfx_constellation'],
     synthFallback: false,        // true = 缺音频时用 Web Audio 合成简单占位音（默认按任务书静默跳过）
   },

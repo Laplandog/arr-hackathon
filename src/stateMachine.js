@@ -286,7 +286,7 @@ export class StateMachine {
       enter: () => {
         m.setPose('stand'); m.setWaitMode(false);
         const aim = target || m.mouthWorld().add({ x: 0.3, y: 0.15, z: -0.4 });
-        m.huff(() => { fx.flames.shoot(m.mouthWorld(), aim, { demo: true }); this.audio.play('sfx_huff', { vol: 0.6 }); });
+        m.huff(() => { fx.flames.shoot(m.mouthWorld(), aim, { demo: true }); this.audio.play('sfx_huff', { vol: CONFIG.audio.sfxVolume * 0.6, dur: CONFIG.audio.huffSoundSec }); });
       },
     }, this._huffWait()]);
   }
@@ -311,7 +311,7 @@ export class StateMachine {
     fx.orb.flash();
     fx.sched.after(lead, () => {
       m.huff(() => {
-        this.audio.play('sfx_huff');
+        if (!this.tutorial) this.audio.play('sfx_huff', { dur: CONFIG.audio.huffSoundSec }); // 有引导模块时，哈气声在孩子的热气飞出时已经放过
         const aim = target || m.mouthWorld().add({ x: 0.3, y: 0.15, z: -0.4 });
         fx.flames.shoot(m.mouthWorld(), aim, { demo: !target });
       });
@@ -358,7 +358,7 @@ export class StateMachine {
     m.faceToward(null);
     // 全部完成：换成结尾的曲子（放晴 + 孵化）；提前结束：当前的曲子慢慢变小
     if (early) this.audio.bgmTo(CONFIG.audio.bgmEndVolume, 4);
-    else this.audio.bgmPlay('end', 1.5);
+    else this.audio.bgmPlay('end', 3);
     if (!early) {
       // 天空放晴；Mochi 醒来开心；星光落到龙蛋上，光团（家长）飞到蛋旁边，和 Mochi 一起看着蛋孵化；音乐收尾
       this.audio.loop('sfx_snore', false); fx.zzz.set(false);

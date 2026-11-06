@@ -12,6 +12,7 @@ export class Voice {
     this.lines = data?.lines || {};
     this.clips = {};
     this.current = null; this.subtitle = ''; this.subtitleT = 0; this.duckUntil = 0;
+    this.queued = [];
     this.tts = typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
     this.ttsVoice = null;
     if (this.tts) {
@@ -47,11 +48,19 @@ export class Voice {
   text(id) { return this.lines[id]?.text || ''; }
   has(id) { return !!this.lines[id]; }
   get recorded() { return Object.keys(this.clips).length; }
+  /** 这句要说多久（秒）：有录音按录音（剪掉空白后），没有按字数估 */
+  duration(id) { const c = this.clips[id]; return c ? c.dur : (this.lines[id]?.text.length || 0) * 0.075 + 0.5; }
+  /** 还在说话（或者还有排队的句子） */
+  get speaking() { return !!this.current?.isPlaying || !!this.tts?.speaking || this.queued.length > 0; }
+  /** 等前一句说完再说这一句 */
+  queue(id) { if (this.speaking) this.queued.push(id); else this.say(id); }
   /** 念一句；同时只念一句（新的一句会打断旧的） */
-  say(id) {
+  say(id, { keepQueue = false } = {}) {
     const L = this.lines[id];
     if (!L) { console.warn(`[voice] 没有这句台词：${id}`); return; }
+    const q = keepQueue ? this.queued : [];
     this.stop();
+    this.queued = q;
     this.subtitle = L.text; this.subtitleT = 0;
     console.log(`%c[旁白] ${L.text}`, 'color:#c06a2b');
     const clip = this.clips[id], V = CONFIG.voice;
@@ -84,9 +93,12 @@ export class Voice {
     this.current = null;
     this.tts?.cancel();
     this.duckUntil = 0;
+    this.queued = [];
   }
   update(dt) {
     this.subtitleT += dt;
+    if (this.current && !this.current.isPlaying) this.current = null;
+    if (this.queued.length && !this.current && !this.tts?.speaking) this.say(this.queued.shift(), { keepQueue: true });
     const bgm = this.audio.bgm;
     if (bgm && bgm.duckK < 1 && this.audio.ctx.currentTime > this.duckUntil) bgm.setDuck(1, 0.8);
   }

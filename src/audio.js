@@ -30,14 +30,24 @@ export function measureClip(buf, { threshold = 0.03, preRoll = 0.05, tail = 0.15
 }
 
 /**
- * 背景音乐：按阶段切换（交叉淡入淡出）；每首在尾巴淡出之前就交叉淡入接回开头（短曲子循环也不会断、不会有空白）；
+ * 背景音乐：按阶段切换；每首在尾巴淡出之前就交叉淡入接回开头（短曲子循环也不会断、不会有空白）；
  * 四首按实测响度自动拉平；被别的曲子打断后再回来，从刚才的位置接着放。
+ * 切换和循环都用“等功率”交叉淡化：新的渐强、旧的渐弱，两首加起来一直一样响，中间不会凹下去像被打断。
+ * 两层音量：每首自己的淡入淡出（per-track gain）→ 总音量 + 旁白压低（bus），两层互不干扰。
  */
 class Bgm {
-  constructor(mgr) { this.mgr = mgr; this.tracks = {}; this.cur = null; this.want = null; this.vol = A.bgmVolume; this.pos = {}; this.duckK = 1; }
+  constructor(mgr) { this.mgr = mgr; this.tracks = {}; this.cur = null; this.want = null; this.vol = A.bgmVolume; this.pos = {}; this.duckK = 1; this.bus = null; }
   get level() { return this.vol * this.duckK; }
-  /** 旁白说话时把音乐压低到 k 倍（1 = 恢复） */
-  setDuck(k, sec = 0.4) { if (Math.abs(k - this.duckK) < 1e-3) return; this.duckK = k; if (this.cur) this._ramp(this.cur.g.gain, this.level * this.cur.t.gain, sec); }
+  _busNode() {
+    if (!this.bus) {
+      this.bus = this.mgr.ctx.createGain();
+      this.bus.gain.value = this.level;
+      this.bus.connect(this.mgr.listener.getInput());
+    }
+    return this.bus;
+  }
+  /** 旁白说话时把音乐压低到 k 倍（1 = 恢复）：只动总线，不影响正在进行的淡入淡出 */
+  setDuck(k, sec = 0.4) { if (Math.abs(k - this.duckK) < 1e-3) return; this.duckK = k; this._ramp(this._busNode().gain, this.level, sec); }
   /** 量一下这首：开头安静的部分、结尾淡出的部分、整体响度 */
   add(key, buf) {
     const ch = [...Array(buf.numberOfChannels)].map((_, i) => buf.getChannelData(i));
@@ -52,33 +62,44 @@ class Bgm {
     let i0 = rms.findIndex((v) => v > med * 0.5); if (i0 < 0) i0 = 0;
     let i1 = rms.length - 1; while (i1 > i0 && rms[i1] < med * 0.6) i1--;
     const loopStart = Math.min(i0 * wsec, 3), loopEnd = Math.min(buf.duration, (i1 + 1) * wsec);
-    const xf = Math.max(0.5, Math.min(A.bgmLoopXfSec, (loopEnd - loopStart) * 0.2));
+    const xf = Math.max(0.5, Math.min(A.bgmLoopXfSec, (loopEnd - loopStart) * 0.3));
     const gain = Math.max(0.5, Math.min(1.6, A.bgmTargetRms / med));
     this.tracks[key] = { buf, loopStart, loopEnd, xf, gain };
     console.log(`[bgm] ${key}：${buf.duration.toFixed(1)} 秒，循环 ${loopStart.toFixed(1)}–${loopEnd.toFixed(1)} 秒，交叉淡入 ${xf.toFixed(1)} 秒，音量 ×${gain.toFixed(2)}`);
   }
   _now() { return this.mgr.ctx.currentTime; }
   _position(v) { return v.offset + (this._now() - v.t0); }
+  _hold(param) {
+    const now = this._now(), v = param.value;
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now); else { param.cancelScheduledValues(now); param.setValueAtTime(v, now); }
+    return v;
+  }
   _ramp(param, to, sec) {
-    const now = this._now();
-    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now); else { param.cancelScheduledValues(now); param.setValueAtTime(param.value, now); }
-    param.linearRampToValueAtTime(Math.max(0.0001, to), now + Math.max(0.02, sec));
+    this._hold(param);
+    param.linearRampToValueAtTime(Math.max(0.0001, to), this._now() + Math.max(0.02, sec));
+  }
+  /** 等功率淡入（sin）/ 淡出（cos）：从当前值平滑地走到 to */
+  _fade(param, to, sec, kind) {
+    const from = this._hold(param), n = 48, c = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = i / (n - 1), k = kind === 'in' ? Math.sin((x * Math.PI) / 2) : Math.cos((x * Math.PI) / 2);
+      c[i] = Math.max(0.0001, kind === 'in' ? from + (to - from) * k : to + (from - to) * k);
+    }
+    try { param.setValueCurveAtTime(c, this._now() + 0.005, Math.max(0.05, sec)); } catch { param.linearRampToValueAtTime(Math.max(0.0001, to), this._now() + Math.max(0.05, sec)); }
   }
   _fadeOut(v, sec) {
     this.pos[v.key] = this._position(v);
-    this._ramp(v.g.gain, 0.0001, sec);
-    try { v.src.stop(this._now() + sec + 0.05); } catch { /* 已停 */ }
+    this._fade(v.g.gain, 0.0001, sec, 'out');
+    try { v.src.stop(this._now() + sec + 0.1); } catch { /* 已停 */ }
   }
   _start(key, offset, fade) {
     const ctx = this.mgr.ctx, t = this.tracks[key];
     const src = ctx.createBufferSource(); src.buffer = t.buf;
     const g = ctx.createGain(); g.gain.value = 0.0001;
-    src.connect(g); g.connect(this.mgr.listener.getInput());
-    const now = this._now();
-    src.start(now, offset);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.linearRampToValueAtTime(Math.max(0.0001, this.level * t.gain), now + fade);
-    this.cur = { key, src, g, t, t0: now, offset };
+    src.connect(g); g.connect(this._busNode());
+    src.start(this._now(), offset);
+    this._fade(g.gain, t.gain, fade, 'in');
+    this.cur = { key, src, g, t, t0: this._now(), offset };
   }
   /** 换成某一首（同一首就不动）；还没解锁声音时先记下来，解锁后再放 */
   play(key, fade = A.bgmFadeSec) {
@@ -93,7 +114,7 @@ class Bgm {
     if (off > t.loopEnd - t.xf - 1) off = t.loopStart;
     this._start(key, off, fade);
   }
-  setVolume(v, sec = 2) { this.vol = v; if (this.cur) this._ramp(this.cur.g.gain, this.level * this.cur.t.gain, sec); }
+  setVolume(v, sec = 2) { this.vol = v; this._ramp(this._busNode().gain, this.level, sec); }
   stop(fade = 0.8) { if (this.cur) { this._fadeOut(this.cur, fade); this.cur = null; } this.pos = {}; }
   update() {
     if (!this.mgr.unlocked) return;
@@ -134,7 +155,8 @@ export class AudioMgr {
         this.buffers[n] = b;
         const loop = n === 'sfx_snore';
         // 打呼噜要循环：不剪空白（保持原来的节奏）；其他音效剪掉前后空白。全部按响度拉平到同一个小音量
-        this.clips[n] = loop ? { start: 0, dur: b.duration, gain: measureClip(b, { target: A.sfxTargetRms }).gain } : measureClip(b, { target: A.sfxTargetRms });
+        const m = measureClip(b, { target: A.sfxTargetRms, maxGain: 10 }); // 原文件很小声的（例如深吸气）也能拉上来，同时不破音
+        this.clips[n] = loop ? { start: 0, dur: b.duration, gain: m.gain } : m;
       }),
       ...Object.entries(A.bgmTracks).map(async ([key, n]) => { const b = await load(n); if (b) this.bgm.add(key, b); }),
     ]);
