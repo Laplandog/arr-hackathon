@@ -1,38 +1,38 @@
 {
-  "_note": "旁白台词（讲故事的人，第三人称）。新手引导每一段都是：先安静等几秒 → 第 1 句说 Mochi 怎么了 → 第 2 句给线索 → 第 3 句才说怎么帮。孩子自己做到了，后面的句子就不会播。录好的音频放 assets/audio/vo_{键}.mp3（例如 vo_huff_1.mp3），没有音频时浏览器用语音合成念。规则：每句十个字左右；不用命令句（不说“你要/请/再来”）；只夸“帮到了”，不夸“更用力/更多”。",
+  "_note": "旁白台词（讲故事的人，第三人称）。text = 中文，en = 英文。新手引导每一段都是：先安静等几秒 → 第 1 句说 Mochi 怎么了 → 第 2 句给线索 → 第 3 句才说怎么帮。孩子自己做到了，后面的句子就不会播。录音：英文 assets/audio/vo_en_{键}.m4a（或 .mp3），中文 vo_{键}.mp3（或 .m4a）；用哪种语言在 src/config.js → voice.lang（默认英文），网址加 ?lang=zh 临时切中文。没有录音的句子用浏览器语音合成。英文录了音的句子，en 按实际录的说法写（字幕要和录音对得上）。规则：句子短；不用命令句；只夸“帮到了”，不夸“更用力/更多”。",
   "lines": {
-    "wake_1":     {"text": "嘘……Mochi 还在睡觉呢。"},
-    "wake_2":     {"text": "看看它，说不定它会醒哦。"},
-    "wake_ok":    {"text": "Mochi 醒啦！"},
+    "wake_1":     {"text": "嘘……Mochi 还在睡觉呢。", "en": "Shh… Mochi is still asleep."},
+    "wake_2":     {"text": "看看它，说不定它会醒哦。", "en": "Look at Mochi. Maybe it will wake up."},
+    "wake_ok":    {"text": "Mochi 醒啦！", "en": "Mochi is awake!"},
 
-    "mirror_1":   {"text": "咦？Mochi 好像在学你哦。"},
-    "mirror_2":   {"text": "歪歪头试试？"},
-    "mirror_3":   {"text": "点点头，看它学不学？"},
-    "mirror_ok":  {"text": "Mochi 学得真像！"},
+    "mirror_1":   {"text": "咦？Mochi 好像在学你哦。", "en": "Hmm? Mochi seems to be copying you."},
+    "mirror_2":   {"text": "歪歪头试试？", "en": "What if you tilt your head?"},
+    "mirror_3":   {"text": "点点头，看它学不学？", "en": "Give a little nod. Will Mochi copy you?"},
+    "mirror_ok":  {"text": "Mochi 学得真像！", "en": "Mochi is so good at copying you!"},
 
-    "relax_1":    {"text": "嘘……Mochi 困了。"},
-    "relax_2":    {"text": "小萤火虫只敢靠近安静的小朋友哦。"},
-    "relax_3":    {"text": "陪 Mochi 安安静静待一会儿吧。"},
-    "relax_ok":   {"text": "萤火虫来啦！"},
+    "relax_1":    {"text": "嘘……Mochi 困了。", "en": "Shh… Mochi is getting sleepy."},
+    "relax_2":    {"text": "小萤火虫只敢靠近安静的小朋友哦。", "en": "Little fireflies only come close to quiet friends."},
+    "relax_3":    {"text": "陪 Mochi 安安静静待一会儿吧。", "en": "Let's stay nice and quiet with Mochi for a while."},
+    "relax_ok":   {"text": "萤火虫来啦！", "en": "Here come the fireflies!"},
 
-    "inhale_1":    {"text": "Mochi 想飞到云上去，可它还不会飞……"},
-    "inhale_ok":   {"text": "萤火虫来帮忙，Mochi 飞起来啦！"},
-    "inhale_hold": {"text": "嘘——水滴要掉下来了……"},
-    "inhale_down": {"text": "Mochi 要降落啦……"},
+    "inhale_1":    {"text": "Mochi 想飞到云上去，可它还不会飞……", "en": "Mochi wants to fly up to the clouds, but it can't fly yet…"},
+    "inhale_ok":   {"text": "萤火虫来帮忙，Mochi 飞起来啦！", "en": "The fireflies are helping. Mochi is flying!"},
+    "inhale_hold": {"text": "嘘——水滴要掉下来了……", "en": "Shh… the dewdrop is about to fall…"},
+    "inhale_down": {"text": "Mochi 要降落啦……", "en": "Mochi is coming in to land…"},
 
-    "huff_1":     {"text": "Mochi 好冷呀……"},
-    "huff_2":     {"text": "它冻得直发抖，小火苗也快熄了……"},
-    "huff_3":     {"text": "哈一口热气，帮它暖暖吧！"},
-    "huff_ok":    {"text": "Mochi 暖和啦！谢谢你！"},
+    "huff_1":     {"text": "Mochi 好冷呀……", "en": "Mochi is so cold…"},
+    "huff_2":     {"text": "它冻得直发抖，小火苗也快熄了……", "en": "It's shivering, and its little flame is almost out…"},
+    "huff_3":     {"text": "哈一口热气，帮它暖暖吧！", "en": "How about a warm \"haaa\" to warm Mochi?"},
+    "huff_ok":    {"text": "Mochi 暖和啦！谢谢你！", "en": "Mochi is warm now! Thank you!"},
 
-    "cough_1":    {"text": "哎呀，有颗小种子卡在 Mochi 喉咙里了……"},
-    "cough_3":    {"text": "咳一下，帮它把种子弄出来？"},
-    "cough_ok":   {"text": "种子飞走啦！"},
+    "cough_1":    {"text": "哎呀，有颗小种子卡在 Mochi 喉咙里了……", "en": "Oh dear, a little seed is stuck in Mochi's throat…"},
+    "cough_3":    {"text": "咳一下，帮它把种子弄出来？", "en": "Could a little cough help get the seed out?"},
+    "cough_ok":   {"text": "种子飞走啦！", "en": "The seed flew away!"},
 
-    "egg_1":      {"text": "龙蛋好冰呀……"},
-    "egg_2":      {"text": "它也冻得直发抖……"},
-    "egg_3":      {"text": "像刚才那样，哈一口热气给它吧！"},
-    "egg_ok":     {"text": "龙蛋暖和一点啦！"},
-    "egg_go":     {"text": "我们一起让它越来越暖吧！"}
+    "egg_1":      {"text": "龙蛋好冰呀……", "en": "The dragon egg is so cold…"},
+    "egg_2":      {"text": "它也冻得直发抖……", "en": "It's shivering too…"},
+    "egg_3":      {"text": "像刚才那样，哈一口热气给它吧！", "en": "Just like before, how about a warm \"haaa\" for the egg?"},
+    "egg_ok":     {"text": "龙蛋暖和一点啦！", "en": "The egg is a little warmer!"},
+    "egg_go":     {"text": "我们一起让它越来越暖吧！", "en": "Let's keep warming it up together!"}
   }
 }

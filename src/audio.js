@@ -10,7 +10,10 @@ const A = CONFIG.audio;
  * 四首按实测响度自动拉平；被别的曲子打断后再回来，从刚才的位置接着放。
  */
 class Bgm {
-  constructor(mgr) { this.mgr = mgr; this.tracks = {}; this.cur = null; this.want = null; this.vol = A.bgmVolume; this.pos = {}; }
+  constructor(mgr) { this.mgr = mgr; this.tracks = {}; this.cur = null; this.want = null; this.vol = A.bgmVolume; this.pos = {}; this.duckK = 1; }
+  get level() { return this.vol * this.duckK; }
+  /** 旁白说话时把音乐压低到 k 倍（1 = 恢复） */
+  setDuck(k, sec = 0.4) { if (Math.abs(k - this.duckK) < 1e-3) return; this.duckK = k; if (this.cur) this._ramp(this.cur.g.gain, this.level * this.cur.t.gain, sec); }
   /** 量一下这首：开头安静的部分、结尾淡出的部分、整体响度 */
   add(key, buf) {
     const ch = [...Array(buf.numberOfChannels)].map((_, i) => buf.getChannelData(i));
@@ -50,7 +53,7 @@ class Bgm {
     const now = this._now();
     src.start(now, offset);
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.linearRampToValueAtTime(Math.max(0.0001, this.vol * t.gain), now + fade);
+    g.gain.linearRampToValueAtTime(Math.max(0.0001, this.level * t.gain), now + fade);
     this.cur = { key, src, g, t, t0: now, offset };
   }
   /** 换成某一首（同一首就不动）；还没解锁声音时先记下来，解锁后再放 */
@@ -66,7 +69,7 @@ class Bgm {
     if (off > t.loopEnd - t.xf - 1) off = t.loopStart;
     this._start(key, off, fade);
   }
-  setVolume(v, sec = 2) { this.vol = v; if (this.cur) this._ramp(this.cur.g.gain, v * this.cur.t.gain, sec); }
+  setVolume(v, sec = 2) { this.vol = v; if (this.cur) this._ramp(this.cur.g.gain, this.level * this.cur.t.gain, sec); }
   stop(fade = 0.8) { if (this.cur) { this._fadeOut(this.cur, fade); this.cur = null; } this.pos = {}; }
   update() {
     if (!this.mgr.unlocked) return;

@@ -39,8 +39,14 @@ export const CONFIG = {
     breathSec: 0.7,           // 孩子的热气飞到 Mochi 嘴里用多久
   },
 
-  // 旁白：台词在 public/config/voice.json；录好的音频 assets/audio/vo_{键}.mp3，没有就用浏览器语音合成
-  voice: { volume: 1, ttsRate: 0.9, ttsPitch: 1.1 },
+  // 旁白：台词在 public/config/voice.json（text 中文 / en 英文）。lang：'en' 用英文录音 vo_en_{键}.m4a，'zh' 用中文 vo_{键}.mp3；
+  // 网址加 ?lang=zh / ?lang=en 可以临时切换。没有录音的句子用浏览器语音合成。
+  voice: {
+    lang: 'en', volume: 1, ttsRate: 0.9, ttsPitch: 1.1,
+    targetRms: 0.12, maxGain: 5, maxPeak: 0.9,     // 录音按响度拉平（不破音）
+    trimThreshold: 0.025, preRollSec: 0.1, tailSec: 0.25, // 剪掉前后空白：门槛很低，轻声的“嘘”也保留；前后各留一点
+    duck: 0.45,                                    // 旁白说话时背景音乐压到 45%
+  },
 
   // layout.json 读不到时的兜底（与 public/assets/layout.json 相同的默认摆放）
   layoutDefaults: {

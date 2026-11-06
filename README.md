@@ -80,7 +80,8 @@ npm run build      # 输出 dist/（Vercel / Netlify 直接用）
 | 暖暖龙蛋 | 龙蛋冻得发抖（发抖符号 + 小雪花），Mochi 看看蛋再看看孩子 | 哈一口气 | 家长 Space | 热气飞到蛋上，蛋从冰凉变成“微暖发光”（颜色变暖、亮一下、一道光），然后进入正式练习；正式练习每轮再暖一格，最后孵化 |
 
 - 家长：看到孩子做了按 **Space**；孩子没明白按 **T**（让游戏再提示一级，代替家长开口教）；**S** 跳过引导；**P** 暂停后继续会从这一段重新开始。
-- 台词表：`public/config/voice.json`（团队改台词不用动代码）。录好的音频放 `assets/audio/vo_{键}.mp3`（例如 `vo_huff_1.mp3`）；没有音频时浏览器用中文语音合成念，再没有就只在家长面板上显示字幕。头显浏览器能不能语音合成要实测，最好录音。
+- 台词表：`public/config/voice.json`（`text` 中文 / `en` 英文，团队改台词不用动代码）；录音稿和录音进度见 [docs/voice-script.md](docs/voice-script.md)。
+- **现在播英文旁白**（`src/config.js` → `voice.lang: 'en'`；网址加 `?lang=zh` 临时切中文）。录音放 `assets/audio/`：英文 `vo_en_{键}.m4a`（或 .mp3），中文 `vo_{键}.mp3`（或 .m4a）。录音会自动剪掉前后空白、按响度拉平；旁白说话时背景音乐自动压低到 45%。没有录音的句子用浏览器语音合成念（头显浏览器能不能合成要实测），再没有就只在家长面板上显示字幕（中英都显示）。
 - 时间、距离等数值：`src/config.js` → `tutorial`。萤火虫、水滴、热气、发抖符号、小雪花都是代码画的。
 - Mochi 冷的时候：整张姿势图换成冰蓝色渐变（shader 里的 `uCold`），不需要额外的图；美术如果画一张冷得缩成一团的姿势 `mochi/mochi_pose_cold.png`（和其他姿势同一画布，跑一下 `tools/prep_poses.py`），“哈一哈”时会自动换上。
 
@@ -189,7 +190,7 @@ public/assets/
          被别的曲子打断后再回来，从刚才的位置接着放。换曲子：同名覆盖即可（越长越不容易听出重复）。
          音效：sfx_snore, sfx_inhale_rise, sfx_hold, sfx_exhale_fall, sfx_huff,
          sfx_melt_chime, sfx_star, sfx_round_complete, sfx_sneeze, sfx_pat_drum,
-         sfx_egg_warm, sfx_constellation, sfx_hatch   （.mp3）；旁白 vo_{台词键}.mp3
+         sfx_egg_warm, sfx_constellation, sfx_hatch   （.mp3）；旁白 vo_en_{台词键}.m4a（英文）/ vo_{台词键}.mp3（中文）
 ```
 
 - 没有 `_gray` 时，shader 会把彩色图实时去饱和并偏灰紫，所以 B 可以不做灰版。
