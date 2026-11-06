@@ -6,6 +6,30 @@ import { assetUrl, report } from './assets.js';
 const A = CONFIG.audio;
 
 /**
+ * 量一段音频：真正有声音的起止时间、响度 → 播放时的起点、时长、增益（拉到 target 响度，不破音）。
+ * 旁白和音效共用：录音 / 下载的音效前后常有空白、音量也各不一样。
+ */
+export function measureClip(buf, { threshold = 0.03, preRoll = 0.05, tail = 0.15, target = 0.1, maxGain = 5, maxPeak = 0.9 } = {}) {
+  const ch = [...Array(buf.numberOfChannels)].map((_, i) => buf.getChannelData(i));
+  const win = Math.max(1, Math.floor(buf.sampleRate * 0.02)), rms = [], peaks = [];
+  for (let s = 0; s + win <= buf.length; s += win) {
+    let a = 0, pk = 0;
+    for (let i = s; i < s + win; i += 2) for (const c of ch) { const v = c[i]; a += v * v; if (Math.abs(v) > pk) pk = Math.abs(v); }
+    rms.push(Math.sqrt(a / ((win / 2) * ch.length))); peaks.push(pk);
+  }
+  const max = Math.max(...rms, 1e-6), th = max * threshold;
+  let i0 = rms.findIndex((v) => v > th); if (i0 < 0) i0 = 0;
+  let i1 = rms.length - 1; while (i1 > i0 && rms[i1] <= th) i1--;
+  const wsec = win / buf.sampleRate;
+  const start = Math.max(0, i0 * wsec - preRoll);
+  const end = Math.min(buf.duration, (i1 + 1) * wsec + tail);
+  const act = rms.slice(i0, i1 + 1).filter((v) => v > max * 0.08);
+  const level = Math.sqrt(act.reduce((s, v) => s + v * v, 0) / Math.max(1, act.length)) || max;
+  const peak = Math.max(...peaks.slice(i0, i1 + 1), 1e-6);
+  return { start, dur: end - start, gain: Math.min(target / level, maxPeak / peak, maxGain) };
+}
+
+/**
  * 背景音乐：按阶段切换（交叉淡入淡出）；每首在尾巴淡出之前就交叉淡入接回开头（短曲子循环也不会断、不会有空白）；
  * 四首按实测响度自动拉平；被别的曲子打断后再回来，从刚才的位置接着放。
  */
@@ -88,6 +112,7 @@ export class AudioMgr {
     camera.add(this.listener);
     this.ctx = this.listener.context;
     this.buffers = {};
+    this.clips = {};         // 音效：剪掉前后空白的起点/时长 + 拉平响度的增益
     this.tags = new Map();   // tag → Set<THREE.Audio>
     this.loops = {};         // name → THREE.Audio
     this.wantBgm = false;
@@ -103,7 +128,14 @@ export class AudioMgr {
       try { return await loader.loadAsync(assetUrl(path)); } catch { report.audioMissing.push(path); return null; }
     };
     await Promise.all([
-      ...A.names.map(async (n) => { const b = await load(n); if (b) this.buffers[n] = b; }),
+      ...A.names.map(async (n) => {
+        const b = await load(n);
+        if (!b) return;
+        this.buffers[n] = b;
+        const loop = n === 'sfx_snore';
+        // 打呼噜要循环：不剪空白（保持原来的节奏）；其他音效剪掉前后空白。全部按响度拉平到同一个小音量
+        this.clips[n] = loop ? { start: 0, dur: b.duration, gain: measureClip(b, { target: A.sfxTargetRms }).gain } : measureClip(b, { target: A.sfxTargetRms });
+      }),
       ...Object.entries(A.bgmTracks).map(async ([key, n]) => { const b = await load(n); if (b) this.bgm.add(key, b); }),
     ]);
     if (report.audioMissing.length) console.warn(`[audio] ${report.audioMissing.length} 个音频缺失，静默跳过${A.synthFallback ? '（用合成占位音）' : ''}`);
@@ -132,20 +164,24 @@ export class AudioMgr {
    * tag：暂停时可以按 tag 停掉（例如 'step' = 当前这口呼吸的音效）。
    */
   play(name, { vol = A.sfxVolume, dur = null, tag = null } = {}) {
+    name = A.alias?.[name] || name; // 例如融雾 / 龙蛋变暖 / 孵化都用“复生”
     const buf = this._buf(name, dur);
     if (!buf || !this.unlocked) return null;
+    const clip = this.clips[name] || { start: 0, dur: buf.duration, gain: 1 };
     const a = new THREE.Audio(this.listener);
     a.setBuffer(buf);
-    a.gain.gain.value = vol;
+    a.offset = clip.start; a.duration = clip.dur;
+    const g0 = vol * (A.sfxLevel?.[name] ?? 1) * clip.gain;
+    a.gain.gain.value = g0;
     a.onEnded = () => {
       THREE.Audio.prototype.onEnded.call(a);
       try { a.disconnect(); a.gain.disconnect(); } catch { /* 已断开 */ }
       if (tag) this.tags.get(tag)?.delete(a);
     };
     a.play();
-    if (dur != null && buf.duration > dur && a.source) {
+    if (dur != null && clip.dur > dur && a.source) {
       const g = a.gain.gain, t0 = this.ctx.currentTime, f = A.stepFadeOutSec;
-      g.setValueAtTime(vol, t0 + Math.max(0, dur - f));
+      g.setValueAtTime(g0, t0 + Math.max(0, dur - f));
       g.linearRampToValueAtTime(0.0001, t0 + dur);
       a.source.stop(t0 + dur + 0.05);
     }
@@ -177,7 +213,7 @@ export class AudioMgr {
       if (!buf) return;
       const a = new THREE.Audio(this.listener);
       a.setBuffer(buf); a.setLoop(true); a.gain.gain.value = 0.0001; a.play();
-      a.gain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.3);
+      a.gain.gain.setTargetAtTime(vol * (A.sfxLevel?.[name] ?? 1) * (this.clips[name]?.gain ?? 1), this.ctx.currentTime, 0.3);
       this.loops[name] = a;
     } else {
       if (this._pendingLoops) delete this._pendingLoops[name];

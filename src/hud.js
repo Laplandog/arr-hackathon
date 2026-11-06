@@ -33,7 +33,7 @@ export class Hud {
       `<b style="font-size:14px">${state}</b> <span style="opacity:.75">${sm.paused ? '暂停中' : STATE_CN[sm.state] || ''}</span>`,
       `步骤：${sm.stepName || '—'}`,
       sm.canNext() ? (tut ? '<span style="color:#ffe08a">▶ 看到孩子做了就按 Space；孩子没明白按 T（让游戏再提示），别开口教</span>' : '<span style="color:#ffe08a">▶ 等待家长按“下一步”</span>') : '',
-      vo && vo.subtitle && vo.subtitleT < 6 ? `<span style="color:#ffd2a8">旁白：「${vo.subtitle}」${vo.subtitleAlt ? `<span style="opacity:.7">（${vo.subtitleAlt}）</span>` : ''}</span>` : '',
+      vo && vo.subtitle && vo.subtitleT < 6 ? `<span style="color:#ffd2a8">Narrator: “${vo.subtitle}”</span>` : '',
       `第 ${sm.round}/${t.rounds} 轮 · 本轮哈气 ${sm.huffInRound}/${t.huffs} · 全局哈气 ${sm.globalHuff}`,
       sm.fx?.egg ? `龙蛋：${sm.fx.egg.stageName} · 星座 ${sm.fx.sky.lit}/${sm.fx.sky.total} 颗` : '',
       `FPS ${this.fps} · 缺失素材 ${missing}（占位）+ ${report.procedural.length}（代码生成）· 音频缺 ${report.audioMissing.length}`,

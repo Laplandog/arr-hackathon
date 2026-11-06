@@ -363,7 +363,7 @@ export class Tutorial {
       name: '一起放松', lines: ['relax_1', 'relax_2', 'relax_3'], autoAt: 40, confirm: true,
       enter: () => {
         m.setPose('stand'); m.calm();
-        m.yawn(() => { m.setPose('sleep'); this.fx.zzz.set(true); });
+        m.yawn(() => { m.setPose('sleep'); this.fx.zzz.set(true); this.audio.loop('sfx_snore', true); });
         ff = new Firefly(this, this.tex.glow);
       },
       update: (dt, t) => {
@@ -443,7 +443,7 @@ export class Tutorial {
             const p = Math.min(1, drop.t / drop.dur); drop.t += dt;
             drop.mesh.position.lerpVectors(drop.from, ht, ease.inOutSine(p));
             drop.mesh.position.x += Math.sin(p * Math.PI * 3) * 0.04 * (1 - p);
-            if (p >= 1) { drop.falling = false; this.fx.sparks.burst(ht, 10, { speed: 0.25, up: 0.1, life: [0.4, 0.8], size: [0.012, 0.024], colors: ['#dff2ff', '#ffffff', '#a8d4ff'], spread: 0.04, grav: 0 }); }
+            if (p >= 1) { drop.falling = false; this.audio.play('sfx_drop'); this.fx.sparks.burst(ht, 10, { speed: 0.25, up: 0.1, life: [0.4, 0.8], size: [0.012, 0.024], colors: ['#dff2ff', '#ffffff', '#a8d4ff'], spread: 0.04, grav: 0 }); }
           } else drop.mesh.position.copy(ht).add(_v.set(0, 0.06, 0.02));
           drop.mesh.scale.set(0.1, 0.15, 1);
           faceHead(drop.mesh, this.head);
@@ -461,6 +461,7 @@ export class Tutorial {
         this._after(lift, () => {
           // Mochi 被萤火虫托着飞起来（= 正式练习里的“吸气上升”）
           m.setWaitMode(false); m.setWings('flap'); m.flyY(B.center, inhale - lift, ease.inOutSine); m.setBelly(CONFIG.mochi.inhaleBelly, inhale - lift);
+          this.audio.play('sfx_inhale_rise', { dur: inhale - lift });
           this._say('inhale_ok');
         });
         this._after(inhale, () => {
@@ -471,6 +472,7 @@ export class Tutorial {
         });
         this._after(inhale + hold, () => {
           m.setHover(false); m.setEyes('open'); m.setWings('glide'); m.flyY(this.getSettings().groundY, exhale, ease.inOutSine); m.setBelly(1, exhale);
+          this.audio.play('sfx_exhale_fall', { dur: exhale });
           this._say('inhale_down');
         });
         this._after(inhale + hold + exhale, () => {
@@ -478,7 +480,7 @@ export class Tutorial {
           // 水滴从 Mochi 头上滑进窝里（龙蛋旁边）
           if (drop) {
             drop.on = false; drop.mesh.parent?.remove(drop.mesh);
-            this.movers.push(new Mover(this.world, this.tex.drop, { from: drop.mesh.position.clone(), to: this.fx.egg.center().clone().add(new THREE.Vector3(-0.12, -0.02, 0.06)), dur: 0.9, size: [0.1, 0.06], aspect: 1.5, fade: [0, 0.25], arc: 0.12, head: this.head }));
+            this.movers.push(new Mover(this.world, this.tex.drop, { from: drop.mesh.position.clone(), to: this.fx.egg.center().clone().add(new THREE.Vector3(-0.12, -0.02, 0.06)), dur: 0.9, size: [0.1, 0.06], aspect: 1.5, fade: [0, 0.25], arc: 0.12, head: this.head, onArrive: () => this.audio.play('sfx_drop', { vol: CONFIG.audio.sfxVolume * 0.6 }) }));
           }
         });
         return inhale + hold + exhale + 1.4;
@@ -512,6 +514,7 @@ export class Tutorial {
         const warm = () => {
           m.cold.go(0, 2.4, ease.inOutSine); m.extra.shiver = 0; m.forcePose = null;
           cold.warm();
+          this.audio.play('sfx_revive'); // Mochi 暖回来
           m.huff(() => this.fx.flames.shoot(m.mouthWorld(), m.mouthWorld().add(new THREE.Vector3(0.32, 0.24, 0.12)), { demo: true }));
           this._after(0.9, () => m.happy({ spin: true }));
         };

@@ -190,6 +190,7 @@ export class StateMachine {
   // ───────────── INTRO ─────────────
   enter_INTRO() {
     this._sleepVisuals();
+    this.audio.loop('sfx_snore', true); // 开场 Mochi 在窝里打呼噜
     this.runner.run([this._wait('等待开始（光团还在远处）')]);
   }
   next_INTRO() {
